@@ -12,7 +12,9 @@ function requireEnvLocal() {
 
 export function seedDevFixtures() {
   requireEnvLocal();
-  runConvex(`npx convex run testing/e2e:seedAdminUser '{"name":"Dev User"}'`, {
+  // Double-quoted + escaped JSON works in both POSIX shells and Windows cmd.exe.
+  const args = JSON.stringify(JSON.stringify({ name: 'Dev User' }));
+  runConvex(`npx convex run testing/e2e:seedAdminUser ${args}`, {
     logLabel: 'Seeding dev admin user...',
   });
 }
