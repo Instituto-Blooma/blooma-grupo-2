@@ -202,7 +202,6 @@ Reference implementation: [client/src/pages/dev-form.tsx](../client/src/pages/de
 
 Collaborative rich text demo: [client/src/pages/dev-richtext-collab.tsx](../client/src/pages/dev-richtext-collab.tsx) at `/dev/richtext-collab` (dev-only). Org-scoped document ids and presence rooms are enforced in [convex/collab.ts](../convex/collab.ts); see [ADR 0002](./adr/0002-yjs-collab-and-org-scoped-presence.md).
 
-
 ## Conventions
 
 - **Use `@/components/ui/*`** for buttons, inputs, cards, menus — not raw `<input>` / `<select>` with ad-hoc Tailwind.
