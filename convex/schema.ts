@@ -2,6 +2,37 @@ import { defineSchema, defineTable } from 'convex/server';
 import { authTables } from '@convex-dev/auth/server';
 import { v } from 'convex/values';
 
+/** One option of a menu sent to a patient (button or list row). Used by `convex/canal.ts`. */
+export const opcaoMenuValidator = v.object({
+  id: v.string(),
+  titulo: v.string(),
+  descricao: v.optional(v.string()),
+});
+
+/** A question with options (buttons or list) — the kind the patient must answer. */
+export const perguntaValidator = v.union(
+  v.object({ tipo: v.literal('botoes'), texto: v.string(), opcoes: v.array(opcaoMenuValidator) }),
+  v.object({
+    tipo: v.literal('lista'),
+    texto: v.string(),
+    textoBotao: v.string(),
+    opcoes: v.array(opcaoMenuValidator),
+  })
+);
+
+/** Provider-neutral outgoing message. `convex/canal.ts` turns it into the WhatsApp payload. */
+export const mensagemSaidaValidator = v.union(
+  v.object({ tipo: v.literal('texto'), texto: v.string() }),
+  ...perguntaValidator.members,
+  v.object({
+    tipo: v.literal('midia'),
+    midia: v.union(v.literal('documento'), v.literal('video')),
+    url: v.string(),
+    legenda: v.optional(v.string()),
+    nomeArquivo: v.optional(v.string()),
+  })
+);
+
 const schema = defineSchema({
   ...authTables,
 
@@ -57,6 +88,94 @@ const schema = defineSchema({
   })
     .index('by_documentId', ['documentId'])
     .index('by_org_and_document', ['organizationId', 'documentId']),
+
+  // Messaging channel (WhatsApp today) — owned by convex/canal.ts.
+  // Only the provider message ID is kept here, never the patient's text.
+  canalMensagensRecebidas: defineTable({
+    mensagemId: v.string(),
+    telefone: v.string(),
+    recebidaEm: v.number(),
+  })
+    .index('by_mensagemId', ['mensagemId'])
+    .index('by_telefone', ['telefone']),
+
+  canalConversas: defineTable({
+    telefone: v.string(),
+    ultimaMensagemPacienteEm: v.number(),
+    // Question waiting for an answer (cleared once answered) and wrong answers to it so far.
+    perguntaAtual: v.optional(perguntaValidator),
+    tentativasErradas: v.optional(v.number()),
+  }).index('by_telefone', ['telefone']),
+
+  // Messages held back because the 24h reply window was closed; sent when the patient writes.
+  canalMensagensPendentes: defineTable({
+    telefone: v.string(),
+    mensagem: mensagemSaidaValidator,
+    criadaEm: v.number(),
+  }).index('by_telefone', ['telefone']),
+
+  // Patients and their conversation — owned by convex/pacientes.ts.
+  // `organizationId` (the hospital) stays empty until the patient is linked to one.
+  pacientes: defineTable({
+    telefone: v.string(),
+    organizationId: v.optional(v.string()),
+    consentimento: v.optional(v.object({ versaoTermo: v.string(), aceitoEm: v.number() })),
+    exclusaoPedidaEm: v.optional(v.number()),
+    criadaEm: v.number(),
+  })
+    .index('by_telefone', ['telefone'])
+    .index('by_organizationId', ['organizationId'])
+    .index('by_organizationId_and_exclusaoPedidaEm', ['organizationId', 'exclusaoPedidaEm']),
+
+  // Hospitals the bot serves: one organization each, with a short code ("ACC") that links a
+  // patient whose first message contains it (e.g. from a wa.me link or QR code).
+  hospitais: defineTable({
+    organizationId: v.string(),
+    codigo: v.string(),
+  })
+    .index('by_codigo', ['codigo'])
+    .index('by_organizationId', ['organizationId']),
+
+  // Editable list of risk words/phrases (stored normalized: lowercase, no accents).
+  palavrasDeRisco: defineTable({
+    termo: v.string(),
+    criadaEm: v.number(),
+  }).index('by_termo', ['termo']),
+
+  // Crisis alerts: phone and time only, never the text. No hospital yet = shown once linked.
+  alertasCrise: defineTable({
+    telefone: v.string(),
+    organizationId: v.optional(v.string()),
+    criadoEm: v.number(),
+  })
+    .index('by_telefone', ['telefone'])
+    .index('by_organizationId_and_criadoEm', ['organizationId', 'criadoEm']),
+
+  // Minimal record that a patient's data was deleted — nothing about the patient herself.
+  exclusoesRealizadas: defineTable({
+    organizationId: v.string(),
+    apagadoPor: v.id('users'),
+    apagadoEm: v.number(),
+  }).index('by_organizationId', ['organizationId']),
+
+  // Stored only after the patient accepted the current consent term.
+  mensagensConversa: defineTable({
+    pacienteId: v.id('pacientes'),
+    direcao: v.union(v.literal('entrada'), v.literal('saida')),
+    texto: v.string(),
+    remetente: v.union(v.literal('paciente'), v.literal('robo'), v.literal('profissional')),
+    profissionalId: v.optional(v.id('users')),
+    enviadaEm: v.number(),
+  }).index('by_pacienteId_and_enviadaEm', ['pacienteId', 'enviadaEm']),
+
+  // Consent term versions; the most recent one is the term patients must accept.
+  termosConsentimento: defineTable({
+    versao: v.string(),
+    texto: v.string(),
+    publicadoEm: v.number(),
+  })
+    .index('by_versao', ['versao'])
+    .index('by_publicadoEm', ['publicadoEm']),
 });
 
 export default schema;

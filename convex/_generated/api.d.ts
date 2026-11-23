@@ -10,6 +10,7 @@
 
 import type * as auth from "../auth.js";
 import type * as authz from "../authz.js";
+import type * as canal from "../canal.js";
 import type * as collab from "../collab.js";
 import type * as devForm from "../devForm.js";
 import type * as devFormSchemas from "../devFormSchemas.js";
@@ -28,8 +29,10 @@ import type * as lib_orgAccess from "../lib/orgAccess.js";
 import type * as lib_succession from "../lib/succession.js";
 import type * as lib_tenantsClient from "../lib/tenantsClient.js";
 import type * as lib_testLoginProvider from "../lib/testLoginProvider.js";
+import type * as lib_texto from "../lib/texto.js";
 import type * as lib_users from "../lib/users.js";
 import type * as onboarding from "../onboarding.js";
+import type * as pacientes from "../pacientes.js";
 import type * as platform from "../platform.js";
 import type * as tenants from "../tenants.js";
 import type * as testing_e2e from "../testing/e2e.js";
@@ -45,6 +48,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   authz: typeof authz;
+  canal: typeof canal;
   collab: typeof collab;
   devForm: typeof devForm;
   devFormSchemas: typeof devFormSchemas;
@@ -63,8 +67,10 @@ declare const fullApi: ApiFromModules<{
   "lib/succession": typeof lib_succession;
   "lib/tenantsClient": typeof lib_tenantsClient;
   "lib/testLoginProvider": typeof lib_testLoginProvider;
+  "lib/texto": typeof lib_texto;
   "lib/users": typeof lib_users;
   onboarding: typeof onboarding;
+  pacientes: typeof pacientes;
   platform: typeof platform;
   tenants: typeof tenants;
   "testing/e2e": typeof testing_e2e;

@@ -31,16 +31,16 @@ Detailed walkthrough: [SETUP.md](./SETUP.md).
 
 ## Scripts
 
-| Script                           | Description                                           |
-| -------------------------------- | ----------------------------------------------------- |
-| `pnpm run setup`                 | One-time local Convex + auth + emulator env           |
-| `pnpm run dev:all`               | Full dev stack (emulators, Convex, Vite)              |
-| `pnpm run dev:backend`           | Convex dev (force-upgrade local backend)              |
-| `pnpm run prefetch:convex:local` | Cache Convex local backend for Railway/CI             |
-| `pnpm run dev`                   | Vite only                                             |
-| `pnpm run build`                 | Convex codegen + production frontend build            |
-| `pnpm run deploy:convex`         | Deploy Convex functions (Railway pre-deploy)          |
-| `pnpm run check`                 | Format, lint, and typecheck                           |
+| Script                           | Description                                  |
+| -------------------------------- | -------------------------------------------- |
+| `pnpm run setup`                 | One-time local Convex + auth + emulator env  |
+| `pnpm run dev:all`               | Full dev stack (emulators, Convex, Vite)     |
+| `pnpm run dev:backend`           | Convex dev (force-upgrade local backend)     |
+| `pnpm run prefetch:convex:local` | Cache Convex local backend for Railway/CI    |
+| `pnpm run dev`                   | Vite only                                    |
+| `pnpm run build`                 | Convex codegen + production frontend build   |
+| `pnpm run deploy:convex`         | Deploy Convex functions (Railway pre-deploy) |
+| `pnpm run check`                 | Format, lint, and typecheck                  |
 
 ## Deploy (Railway)
 

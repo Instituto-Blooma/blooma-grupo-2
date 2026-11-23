@@ -47,10 +47,10 @@ Details: [environment.md](./environment.md), [SETUP.md](../SETUP.md) production 
 
 ## 5. Remove or repurpose demo surfaces
 
-| Item           | Location                            | Suggestion                                        |
-| -------------- | ----------------------------------- | ------------------------------------------------- |
-| Todos demo     | `convex/todos.ts`, dashboard        | Replace with your first org-scoped feature        |
-| Dev routes     | `/dev/*` in `client/src/routes/`    | Remove or gate behind your own flag               |
+| Item             | Location                         | Suggestion                                        |
+| ---------------- | -------------------------------- | ------------------------------------------------- |
+| Todos demo       | `convex/todos.ts`, dashboard     | Replace with your first org-scoped feature        |
+| Dev routes       | `/dev/*` in `client/src/routes/` | Remove or gate behind your own flag               |
 | Local seed users | `convex/testing/e2e.ts`          | Dev-only seed. Do not turn this into a test suite |
 | Example emails   | `emulate.config.yaml`            | Align with your domain                            |
 
