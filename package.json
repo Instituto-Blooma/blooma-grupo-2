@@ -34,7 +34,8 @@
     "check:fix": "pnpm run format && pnpm run lint:fix && pnpm run check",
     "check:all": "pnpm run check:fix",
     "seed:dev": "node script/seed.mjs dev",
-    "whatsapp:simular": "node script/simular-whatsapp.mjs"
+    "whatsapp:simular": "node script/simular-whatsapp.mjs",
+    "dados:apagar-teste": "node script/apagar-dados-teste.mjs"
   },
   "dependencies": {
     "@auth/core": "^0.37.4",

@@ -282,24 +282,13 @@ export const registrarMensagemRecebida = internalMutation({
     const opcaoEscolhida = pergunta
       ? escolherOpcao(pergunta, args.texto, args.idEscolhido)
       : args.idEscolhido;
-
-    // Open question + no matching option = wrong answer; the 3rd one in a row goes to the team.
-    const tentativasErradas =
-      pergunta && !opcaoEscolhida ? (conversa?.tentativasErradas ?? 0) + 1 : 0;
-    const desfecho = !pergunta
-      ? 'sem_pergunta'
-      : opcaoEscolhida
-        ? 'respondida'
-        : tentativasErradas >= MAX_TENTATIVAS_ERRADAS
-          ? 'encaminhar_equipe'
-          : 'repetir_pergunta';
-    const perguntaContinua = desfecho === 'repetir_pergunta';
+    const respondeuPergunta = pergunta !== undefined && opcaoEscolhida !== null;
 
     if (conversa) {
       await ctx.db.patch('canalConversas', conversa._id, {
         ultimaMensagemPacienteEm: Math.max(conversa.ultimaMensagemPacienteEm, args.recebidaEm),
-        perguntaAtual: perguntaContinua ? pergunta : undefined,
-        tentativasErradas: perguntaContinua ? tentativasErradas : undefined,
+        // An answered question closes before the product logic runs (it may ask the next one).
+        ...(respondeuPergunta ? { perguntaAtual: undefined, tentativasErradas: undefined } : {}),
       });
     } else {
       await ctx.db.insert('canalConversas', {
@@ -311,30 +300,67 @@ export const registrarMensagemRecebida = internalMutation({
     // The patient wrote, so the 24h window is open again: send what was waiting for her.
     await enviarPendentes(ctx, args.telefone);
 
-    if (pergunta && desfecho === 'repetir_pergunta') {
-      await repetirPergunta(ctx, args.telefone, pergunta);
-    } else if (desfecho === 'encaminhar_equipe') {
-      await encaminharParaEquipe(ctx, args.telefone);
-    }
-
-    // Every message reaches the triage — including answers that matched no option, so a
-    // written request for help is never lost.
-    await entregarParaTriagem(ctx, {
+    // Every message reaches the product logic first — including answers that matched no option,
+    // so a written request for help is never lost and can stop the question from repeating.
+    const { cancelarPergunta } = await entregarParaTriagem(ctx, {
       telefone: args.telefone,
       texto: args.texto,
       opcaoEscolhida,
     });
+
+    if (pergunta && !respondeuPergunta) {
+      await tratarRespostaErrada(ctx, args.telefone, pergunta, cancelarPergunta);
+    }
     return null;
   },
 });
 
+/** What the product logic tells the channel after handling a message. */
+export type ResultadoRecebimento = {
+  /** Stop asking the open question (e.g. a crisis message or a request to delete data). */
+  cancelarPergunta: boolean;
+};
+
 /**
  * The single hand-off point from the channel to the rest of the product.
- * The triage flow plugs in here; it only ever receives `{ telefone, texto, opcaoEscolhida }`.
+ * It only ever receives `{ telefone, texto, opcaoEscolhida }`.
  */
-async function entregarParaTriagem(ctx: MutationCtx, mensagem: MensagemRecebida) {
+async function entregarParaTriagem(
+  ctx: MutationCtx,
+  mensagem: MensagemRecebida
+): Promise<ResultadoRecebimento> {
   logarSimulado('[canal] mensagem recebida', mensagem);
-  await receberMensagemDaPaciente(ctx, mensagem);
+  return await receberMensagemDaPaciente(ctx, mensagem);
+}
+
+/** Open question + no matching option: repeat it, or hand over on the 3rd wrong answer in a row. */
+async function tratarRespostaErrada(
+  ctx: MutationCtx,
+  telefone: string,
+  pergunta: Pergunta,
+  cancelarPergunta: boolean
+) {
+  const conversa = await buscarConversa(ctx, telefone);
+  // The product logic may already have asked a different question: then there is nothing to do.
+  if (
+    !conversa?.perguntaAtual ||
+    JSON.stringify(conversa.perguntaAtual) !== JSON.stringify(pergunta)
+  ) {
+    return;
+  }
+  const tentativasErradas = (conversa.tentativasErradas ?? 0) + 1;
+  if (cancelarPergunta || tentativasErradas >= MAX_TENTATIVAS_ERRADAS) {
+    await ctx.db.patch('canalConversas', conversa._id, {
+      perguntaAtual: undefined,
+      tentativasErradas: undefined,
+    });
+    if (!cancelarPergunta) {
+      await encaminharParaEquipe(ctx, telefone);
+    }
+    return;
+  }
+  await ctx.db.patch('canalConversas', conversa._id, { tentativasErradas });
+  await repetirPergunta(ctx, telefone, pergunta);
 }
 
 /**
@@ -377,6 +403,13 @@ async function agendarEmSequenciaDoRobo(
   }
   await ctx.scheduler.runAfter(0, internal.canal.entregarEmSequencia, { telefone, mensagens });
 }
+
+/** True while no WhatsApp token is configured (nothing is really sent). */
+export const estaEmModoSimulado = internalQuery({
+  args: {},
+  returns: v.boolean(),
+  handler: async () => configuracao().simulado,
+});
 
 /** Whether the patient has a question with options waiting for her answer. */
 export const temPerguntaAberta = internalQuery({

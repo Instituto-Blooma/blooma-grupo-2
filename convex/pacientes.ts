@@ -1,14 +1,16 @@
 /**
- * Patients, consent and the conversation history the team reads on the site.
+ * Patients, hospital link, crisis check, consent and the conversation history the hospital team
+ * reads on the site.
  *
  * - The channel (`convex/canal.ts`) calls `receberMensagemDaPaciente` for every incoming message
  *   and `registrarMensagemEnviada` for every outgoing one, using only provider-neutral data.
+ * - Order for each incoming message: risk words → "apagar meus dados" → link to a hospital →
+ *   consent term → store the text.
  * - Text is stored only after the patient accepted the current consent term. Before that, only
- *   her phone number and the fact that she has not accepted yet are kept.
- * - Who sees what: the central team (platform admins) sees only patients with no hospital yet and
- *   routes them; each hospital (organization) sees only its own patients.
- * - Erasure: the patient writes "apagar meus dados"; the central team confirms with
- *   `apagarDadosDaPaciente`, which removes her messages, her record and her channel data.
+ *   her phone number (and hospital, once known) is kept.
+ * - Each hospital (organization) sees only its own patients. There is no central team.
+ * - Hospital codes, risk words and consent terms are data (tables), edited with the internal
+ *   functions at the end of this file — not hard-coded.
  */
 import { paginationOptsValidator } from 'convex/server';
 import { ConvexError, v } from 'convex/values';
@@ -16,24 +18,29 @@ import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import {
   internalMutation,
+  internalQuery,
   mutation,
   query,
   type MutationCtx,
   type QueryCtx,
 } from './_generated/server';
-import type { MensagemRecebida } from './canal';
-import { requirePlatformAdmin, requireUserId } from './lib/auth';
+import type { MensagemRecebida, ResultadoRecebimento } from './canal';
+import { requireUserId } from './lib/auth';
 import { tenantsClient } from './lib/tenantsClient';
 import { normalizarTexto } from './lib/texto';
 
 export const OPCAO_TERMO_ACEITO = 'termo_aceito';
 export const OPCAO_TERMO_RECUSADO = 'termo_recusado';
+const PREFIXO_OPCAO_HOSPITAL = 'hospital:';
 
+const MENSAGEM_CRISE =
+  'Se você está em perigo ou pensando em tirar a própria vida, procure ajuda agora: ligue 188 (CVV, gratuito, 24 horas) ou 192 (SAMU). Você não precisa passar por isso sem ajuda.';
 const MENSAGEM_ACEITE = 'Obrigado pelo aceite! Vamos continuar.';
 const MENSAGEM_RECUSA =
   'Tudo bem. Sem o seu aceite não conseguimos continuar o atendimento por aqui. Se mudar de ideia, é só mandar uma mensagem.';
 const MENSAGEM_EXCLUSAO_PEDIDA =
-  'Recebemos seu pedido para apagar seus dados. A equipe vai concluir o pedido; você não precisa fazer mais nada.';
+  'Recebemos seu pedido para apagar seus dados. A equipe do hospital vai concluir o pedido; você não precisa fazer mais nada.';
+const PERGUNTA_HOSPITAL = 'Em qual hospital você faz tratamento?';
 const TEXTO_SEM_CONTEUDO = '[mensagem sem texto: áudio, imagem ou outro arquivo]';
 
 /** Typed requests that mean "delete my data" (compared without accents/case/punctuation). */
@@ -41,7 +48,15 @@ const PEDIDOS_DE_EXCLUSAO = ['apagar meus dados', 'apague meus dados', 'excluir 
 
 /** Largest consent text that fits in the WhatsApp question with the two buttons. */
 const MAX_TEXTO_TERMO = 1024;
+/** A WhatsApp list shows at most 10 options; each title has at most 24 characters. */
+const MAX_HOSPITAIS_NA_PERGUNTA = 10;
+const MAX_TITULO_OPCAO_LISTA = 24;
+const MAX_HOSPITAIS = 100;
+const MAX_PALAVRAS_DE_RISCO = 500;
 const LOTE_EXCLUSAO = 100;
+
+const SEM_CANCELAR: ResultadoRecebimento = { cancelarPergunta: false };
+const CANCELAR: ResultadoRecebimento = { cancelarPergunta: true };
 
 export type RemetenteSaida = { tipo: 'robo' } | { tipo: 'profissional'; usuarioId?: Id<'users'> };
 
@@ -49,38 +64,61 @@ export type RemetenteSaida = { tipo: 'robo' } | { tipo: 'profissional'; usuarioI
 // Called by the channel
 // ---------------------------------------------------------------------------
 
-/** Every incoming patient message passes here (after the channel handled menus and retries). */
-export async function receberMensagemDaPaciente(ctx: MutationCtx, mensagem: MensagemRecebida) {
-  const paciente = await obterOuCriarPaciente(ctx, mensagem.telefone);
+/** Every incoming patient message passes here (after the channel matched menu answers). */
+export async function receberMensagemDaPaciente(
+  ctx: MutationCtx,
+  mensagem: MensagemRecebida
+): Promise<ResultadoRecebimento> {
+  let paciente = await obterOuCriarPaciente(ctx, mensagem.telefone);
+  const textoNormalizado = normalizarTexto(mensagem.texto);
+  const consentiu = await temConsentimentoAtual(ctx, paciente);
 
-  // Works before consent too: the request itself is not stored as conversation text.
-  if (PEDIDOS_DE_EXCLUSAO.includes(normalizarTexto(mensagem.texto))) {
+  // 1. Risk words come first, even before the consent term.
+  if (await contemPalavraDeRisco(ctx, textoNormalizado)) {
+    await ctx.db.insert('alertasCrise', {
+      telefone: paciente.telefone,
+      ...(paciente.organizationId ? { organizationId: paciente.organizationId } : {}),
+      criadoEm: Date.now(),
+    });
+    if (consentiu) {
+      await guardarMensagemDaPaciente(ctx, paciente, mensagem.texto);
+    }
+    await enviarTextoDoRobo(ctx, paciente.telefone, MENSAGEM_CRISE);
+    return CANCELAR;
+  }
+
+  // 2. Works before consent too: the request itself is not stored as conversation text.
+  if (PEDIDOS_DE_EXCLUSAO.includes(textoNormalizado)) {
     if (!paciente.exclusaoPedidaEm) {
       await ctx.db.patch('pacientes', paciente._id, { exclusaoPedidaEm: Date.now() });
     }
-    await enviarTextoDoRobo(ctx, mensagem.telefone, MENSAGEM_EXCLUSAO_PEDIDA);
-    return;
+    await enviarTextoDoRobo(ctx, paciente.telefone, MENSAGEM_EXCLUSAO_PEDIDA);
+    return CANCELAR;
   }
 
+  // 3. Link to a hospital: code in the message, answer to the question, or the only hospital.
+  if (!paciente.organizationId) {
+    const organizationId = await identificarHospital(ctx, textoNormalizado, mensagem);
+    if (!organizationId) {
+      return SEM_CANCELAR;
+    }
+    paciente = await ligarAoHospital(ctx, paciente, organizationId);
+  }
+
+  // 4. Consent term.
   const termo = await termoAtual(ctx);
   if (!termo) {
     console.warn('[pacientes] nenhum termo de consentimento publicado: mensagem não guardada');
-    return;
+    return SEM_CANCELAR;
   }
-
   if (paciente.consentimento?.versaoTermo !== termo.versao) {
     await tratarConsentimento(ctx, paciente, termo, mensagem);
-    return;
+    return SEM_CANCELAR;
   }
 
-  await ctx.db.insert('mensagensConversa', {
-    pacienteId: paciente._id,
-    direcao: 'entrada',
-    texto: mensagem.texto || TEXTO_SEM_CONTEUDO,
-    remetente: 'paciente',
-    enviadaEm: Date.now(),
-  });
-  // The triage flow (scales and priority) will continue from here.
+  // 5. Consented: keep the text for the hospital team. The triage flow continues from here.
+  await guardarMensagemDaPaciente(ctx, paciente, mensagem.texto);
+  return SEM_CANCELAR;
 }
 
 /** Every outgoing message passes here; it is stored only if the patient consented. */
@@ -106,6 +144,123 @@ export async function registrarMensagemEnviada(
   });
 }
 
+async function guardarMensagemDaPaciente(
+  ctx: MutationCtx,
+  paciente: Doc<'pacientes'>,
+  texto: string
+) {
+  await ctx.db.insert('mensagensConversa', {
+    pacienteId: paciente._id,
+    direcao: 'entrada',
+    texto: texto || TEXTO_SEM_CONTEUDO,
+    remetente: 'paciente',
+    enviadaEm: Date.now(),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Hospital link
+// ---------------------------------------------------------------------------
+
+/**
+ * Which hospital this message links the patient to, or `null` (then the question was asked,
+ * is still open, or there is no hospital registered).
+ */
+async function identificarHospital(
+  ctx: MutationCtx,
+  textoNormalizado: string,
+  mensagem: MensagemRecebida
+): Promise<string | null> {
+  const hospitais = await ctx.db.query('hospitais').take(MAX_HOSPITAIS);
+  if (hospitais.length === 0) {
+    console.warn('[pacientes] nenhum hospital cadastrado: paciente não pode ser atendida');
+    return null;
+  }
+
+  // A known code anywhere in the message ("Oi ACC").
+  const palavras = new Set(textoNormalizado.split(' '));
+  const porCodigo = hospitais.find((hospital) => palavras.has(normalizarTexto(hospital.codigo)));
+  if (porCodigo) return porCodigo.organizationId;
+
+  // Answer to "Em qual hospital você faz tratamento?".
+  if (mensagem.opcaoEscolhida?.startsWith(PREFIXO_OPCAO_HOSPITAL)) {
+    const escolhido = mensagem.opcaoEscolhida.slice(PREFIXO_OPCAO_HOSPITAL.length);
+    if (hospitais.some((hospital) => hospital.organizationId === escolhido)) return escolhido;
+  }
+
+  if (hospitais.length === 1) return hospitais[0].organizationId;
+
+  // More than one hospital and no code: ask (unless the question is already open — then the
+  // channel has just repeated it).
+  const perguntaAberta: boolean = await ctx.runQuery(internal.canal.temPerguntaAberta, {
+    telefone: mensagem.telefone,
+  });
+  if (!perguntaAberta) {
+    const opcoes = await Promise.all(
+      hospitais.slice(0, MAX_HOSPITAIS_NA_PERGUNTA).map(async (hospital) => ({
+        id: `${PREFIXO_OPCAO_HOSPITAL}${hospital.organizationId}`,
+        titulo: limitar(await nomeDoHospital(ctx, hospital), MAX_TITULO_OPCAO_LISTA),
+      }))
+    );
+    await ctx.runMutation(internal.canal.enviarLista, {
+      telefone: mensagem.telefone,
+      texto: PERGUNTA_HOSPITAL,
+      textoBotao: 'Ver hospitais',
+      opcoes,
+    });
+  }
+  return null;
+}
+
+async function ligarAoHospital(
+  ctx: MutationCtx,
+  paciente: Doc<'pacientes'>,
+  organizationId: string
+): Promise<Doc<'pacientes'>> {
+  await ctx.db.patch('pacientes', paciente._id, { organizationId });
+  // Crisis alerts sent before she chose a hospital now show up for that hospital.
+  const alertasSemHospital = await ctx.db
+    .query('alertasCrise')
+    .withIndex('by_telefone', (q) => q.eq('telefone', paciente.telefone))
+    .take(LOTE_EXCLUSAO);
+  for (const alerta of alertasSemHospital) {
+    if (!alerta.organizationId) {
+      await ctx.db.patch('alertasCrise', alerta._id, { organizationId });
+    }
+  }
+  return { ...paciente, organizationId };
+}
+
+/** Organization name, or the code if it cannot be read (e.g. the organization was removed). */
+async function nomeDoHospital(ctx: QueryCtx | MutationCtx, hospital: Doc<'hospitais'>) {
+  try {
+    const organizacao = await tenantsClient.getOrganization(ctx, hospital.organizationId);
+    return organizacao?.name ?? hospital.codigo;
+  } catch {
+    return hospital.codigo;
+  }
+}
+
+function limitar(texto: string, maximo: number) {
+  return texto.length <= maximo ? texto : `${texto.slice(0, maximo - 1)}…`;
+}
+
+// ---------------------------------------------------------------------------
+// Risk words
+// ---------------------------------------------------------------------------
+
+async function contemPalavraDeRisco(ctx: MutationCtx, textoNormalizado: string) {
+  if (!textoNormalizado) return false;
+  const palavras = await ctx.db.query('palavrasDeRisco').take(MAX_PALAVRAS_DE_RISCO);
+  const comEspacos = ` ${textoNormalizado} `;
+  // Whole words or phrases only: "morrer" matches "quero morrer", not "morrerão".
+  return palavras.some((palavra) => comEspacos.includes(` ${palavra.termo} `));
+}
+
+// ---------------------------------------------------------------------------
+// Consent term
+// ---------------------------------------------------------------------------
+
 async function tratarConsentimento(
   ctx: MutationCtx,
   paciente: Doc<'pacientes'>,
@@ -116,20 +271,20 @@ async function tratarConsentimento(
     await ctx.db.patch('pacientes', paciente._id, {
       consentimento: { versaoTermo: termo.versao, aceitoEm: Date.now() },
     });
-    await enviarTextoDoRobo(ctx, mensagem.telefone, MENSAGEM_ACEITE);
+    await enviarTextoDoRobo(ctx, paciente.telefone, MENSAGEM_ACEITE);
     return;
   }
   if (mensagem.opcaoEscolhida === OPCAO_TERMO_RECUSADO) {
-    await enviarTextoDoRobo(ctx, mensagem.telefone, MENSAGEM_RECUSA);
+    await enviarTextoDoRobo(ctx, paciente.telefone, MENSAGEM_RECUSA);
     return;
   }
   // If the term question is already open, the channel has just repeated it.
   const perguntaAberta: boolean = await ctx.runQuery(internal.canal.temPerguntaAberta, {
-    telefone: mensagem.telefone,
+    telefone: paciente.telefone,
   });
   if (!perguntaAberta) {
     await ctx.runMutation(internal.canal.enviarBotoes, {
-      telefone: mensagem.telefone,
+      telefone: paciente.telefone,
       texto: termo.texto,
       opcoes: [
         { id: OPCAO_TERMO_ACEITO, titulo: 'Aceito' },
@@ -137,6 +292,19 @@ async function tratarConsentimento(
       ],
     });
   }
+}
+
+async function termoAtual(ctx: QueryCtx | MutationCtx) {
+  return await ctx.db
+    .query('termosConsentimento')
+    .withIndex('by_publicadoEm')
+    .order('desc')
+    .first();
+}
+
+async function temConsentimentoAtual(ctx: QueryCtx | MutationCtx, paciente: Doc<'pacientes'>) {
+  const termo = await termoAtual(ctx);
+  return termo !== null && paciente.consentimento?.versaoTermo === termo.versao;
 }
 
 async function enviarTextoDoRobo(ctx: MutationCtx, telefone: string, texto: string) {
@@ -148,12 +316,267 @@ async function enviarTextoDoRobo(ctx: MutationCtx, telefone: string, texto: stri
 }
 
 // ---------------------------------------------------------------------------
-// Consent term
+// Site: hospital team (members of the organization only)
+// ---------------------------------------------------------------------------
+
+/** The hospital's patients, newest first. */
+export const listarPacientes = query({
+  args: { organizationId: v.string(), paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    await requireMembroDoHospital(ctx, args.organizationId);
+    const pagina = await ctx.db
+      .query('pacientes')
+      .withIndex('by_organizationId', (q) => q.eq('organizationId', args.organizationId))
+      .order('desc')
+      .paginate(args.paginationOpts);
+    return { ...pagina, page: pagina.page.map(resumoDaPaciente) };
+  },
+});
+
+/** Conversation of one patient of the hospital, newest first. */
+export const listarMensagens = query({
+  args: { pacienteId: v.id('pacientes'), paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    await requireAcessoAPaciente(ctx, args.pacienteId);
+    return await ctx.db
+      .query('mensagensConversa')
+      .withIndex('by_pacienteId_and_enviadaEm', (q) => q.eq('pacienteId', args.pacienteId))
+      .order('desc')
+      .paginate(args.paginationOpts);
+  },
+});
+
+/** Crisis alerts of the hospital, newest first: phone and time only. */
+export const listarAlertasDeCrise = query({
+  args: { organizationId: v.string(), paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    await requireMembroDoHospital(ctx, args.organizationId);
+    const pagina = await ctx.db
+      .query('alertasCrise')
+      .withIndex('by_organizationId_and_criadoEm', (q) =>
+        q.eq('organizationId', args.organizationId)
+      )
+      .order('desc')
+      .paginate(args.paginationOpts);
+    return {
+      ...pagina,
+      page: pagina.page.map((alerta) => ({
+        _id: alerta._id,
+        telefone: alerta.telefone,
+        criadoEm: alerta.criadoEm,
+      })),
+    };
+  },
+});
+
+/** Patients of the hospital who asked to have their data deleted. */
+export const listarPedidosDeExclusao = query({
+  args: { organizationId: v.string(), paginationOpts: paginationOptsValidator },
+  handler: async (ctx, args) => {
+    await requireMembroDoHospital(ctx, args.organizationId);
+    const pagina = await ctx.db
+      .query('pacientes')
+      .withIndex('by_organizationId_and_exclusaoPedidaEm', (q) =>
+        q.eq('organizationId', args.organizationId).gt('exclusaoPedidaEm', 0)
+      )
+      .paginate(args.paginationOpts);
+    return { ...pagina, page: pagina.page.map(resumoDaPaciente) };
+  },
+});
+
+/**
+ * Hospital team confirms a patient's request to delete her data. Her record disappears at once;
+ * her messages, alerts and channel data are removed in batches right after. Only a minimal record
+ * (hospital, who deleted, when) is kept.
+ */
+export const apagarDadosDaPaciente = mutation({
+  args: { pacienteId: v.id('pacientes') },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const { paciente, userId } = await requireAcessoAPaciente(ctx, args.pacienteId);
+    if (!paciente.exclusaoPedidaEm) {
+      throw new ConvexError('Esta paciente não pediu para apagar os dados.');
+    }
+    await ctx.db.insert('exclusoesRealizadas', {
+      organizationId: paciente.organizationId,
+      apagadoPor: userId,
+      apagadoEm: Date.now(),
+    });
+    await ctx.db.delete('pacientes', paciente._id);
+    await ctx.scheduler.runAfter(0, internal.pacientes.apagarRestoDosDados, {
+      pacienteId: paciente._id,
+      telefone: paciente.telefone,
+    });
+    return null;
+  },
+});
+
+export const apagarRestoDosDados = internalMutation({
+  args: { pacienteId: v.id('pacientes'), telefone: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const { telefone } = args;
+    const lotes = await Promise.all([
+      ctx.db
+        .query('mensagensConversa')
+        .withIndex('by_pacienteId_and_enviadaEm', (q) => q.eq('pacienteId', args.pacienteId))
+        .take(LOTE_EXCLUSAO),
+      ctx.db
+        .query('alertasCrise')
+        .withIndex('by_telefone', (q) => q.eq('telefone', telefone))
+        .take(LOTE_EXCLUSAO),
+      ctx.db
+        .query('canalMensagensRecebidas')
+        .withIndex('by_telefone', (q) => q.eq('telefone', telefone))
+        .take(LOTE_EXCLUSAO),
+      ctx.db
+        .query('canalMensagensPendentes')
+        .withIndex('by_telefone', (q) => q.eq('telefone', telefone))
+        .take(LOTE_EXCLUSAO),
+      ctx.db
+        .query('canalConversas')
+        .withIndex('by_telefone', (q) => q.eq('telefone', telefone))
+        .take(LOTE_EXCLUSAO),
+    ]);
+    for (const documento of lotes.flat()) {
+      await ctx.db.delete(documento._id);
+    }
+    if (lotes.some((lote) => lote.length === LOTE_EXCLUSAO)) {
+      await ctx.scheduler.runAfter(0, internal.pacientes.apagarRestoDosDados, args);
+    }
+    return null;
+  },
+});
+
+function resumoDaPaciente(paciente: Doc<'pacientes'>) {
+  return {
+    _id: paciente._id,
+    telefone: paciente.telefone,
+    criadaEm: paciente.criadaEm,
+    aceitouTermo: paciente.consentimento !== undefined,
+    exclusaoPedidaEm: paciente.exclusaoPedidaEm ?? null,
+  };
+}
+
+async function requireMembroDoHospital(ctx: QueryCtx | MutationCtx, organizationId: string) {
+  const userId = await requireUserId(ctx);
+  const membro = await tenantsClient.getMember(ctx, organizationId, userId);
+  if (!membro) {
+    throw new ConvexError('Você não faz parte deste hospital.');
+  }
+  return userId;
+}
+
+/** Only members of the patient's hospital; a patient with no hospital yet is seen by no one. */
+async function requireAcessoAPaciente(ctx: QueryCtx | MutationCtx, pacienteId: Id<'pacientes'>) {
+  const paciente = await ctx.db.get('pacientes', pacienteId);
+  if (!paciente?.organizationId) {
+    throw new ConvexError('Paciente não encontrada.');
+  }
+  const userId = await requireMembroDoHospital(ctx, paciente.organizationId);
+  return { paciente: { ...paciente, organizationId: paciente.organizationId }, userId };
+}
+
+// ---------------------------------------------------------------------------
+// Data editing (run from the terminal until there are screens for it)
 // ---------------------------------------------------------------------------
 
 /**
+ * Registers a hospital for the bot, or changes its code.
+ *   npx convex run pacientes:definirCodigoDoHospital '{"organizationId":"...","codigo":"ACC"}'
+ */
+export const definirCodigoDoHospital = internalMutation({
+  args: { organizationId: v.string(), codigo: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const codigo = args.codigo.trim().toUpperCase();
+    if (!/^[A-Z0-9]{2,10}$/.test(codigo)) {
+      throw new ConvexError('O código deve ter de 2 a 10 letras ou números, sem espaços.');
+    }
+    if (!(await tenantsClient.getOrganization(ctx, args.organizationId))) {
+      throw new ConvexError('Hospital (organização) não encontrado.');
+    }
+    const comCodigo = await ctx.db
+      .query('hospitais')
+      .withIndex('by_codigo', (q) => q.eq('codigo', codigo))
+      .unique();
+    if (comCodigo && comCodigo.organizationId !== args.organizationId) {
+      throw new ConvexError(`O código ${codigo} já é de outro hospital.`);
+    }
+    const existente = await ctx.db
+      .query('hospitais')
+      .withIndex('by_organizationId', (q) => q.eq('organizationId', args.organizationId))
+      .unique();
+    if (existente) {
+      await ctx.db.patch('hospitais', existente._id, { codigo });
+    } else {
+      await ctx.db.insert('hospitais', { organizationId: args.organizationId, codigo });
+    }
+    return null;
+  },
+});
+
+/** Registered hospitals with their codes and the message to put in the wa.me link. */
+export const listarHospitais = internalQuery({
+  args: {},
+  returns: v.array(
+    v.object({
+      organizationId: v.string(),
+      nome: v.string(),
+      codigo: v.string(),
+      mensagemDoLink: v.string(),
+    })
+  ),
+  handler: async (ctx) => {
+    const hospitais = await ctx.db.query('hospitais').take(MAX_HOSPITAIS);
+    return await Promise.all(
+      hospitais.map(async (hospital) => ({
+        organizationId: hospital.organizationId,
+        nome: await nomeDoHospital(ctx, hospital),
+        codigo: hospital.codigo,
+        mensagemDoLink: `Oi ${hospital.codigo}`,
+      }))
+    );
+  },
+});
+
+/** Adds a word or phrase to the risk list (stored without accents/case). */
+export const adicionarPalavraDeRisco = internalMutation({
+  args: { termo: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const termo = normalizarTexto(args.termo);
+    if (!termo) {
+      throw new ConvexError('Informe a palavra ou frase.');
+    }
+    const existente = await ctx.db
+      .query('palavrasDeRisco')
+      .withIndex('by_termo', (q) => q.eq('termo', termo))
+      .unique();
+    if (!existente) {
+      await ctx.db.insert('palavrasDeRisco', { termo, criadaEm: Date.now() });
+    }
+    return null;
+  },
+});
+
+export const removerPalavraDeRisco = internalMutation({
+  args: { termo: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const existente = await ctx.db
+      .query('palavrasDeRisco')
+      .withIndex('by_termo', (q) => q.eq('termo', normalizarTexto(args.termo)))
+      .unique();
+    if (existente) {
+      await ctx.db.delete('palavrasDeRisco', existente._id);
+    }
+    return null;
+  },
+});
+
+/**
  * Publishes a new consent term version; patients must accept it before anything is stored.
- * Run from the terminal until there is a screen for it:
  *   npx convex run pacientes:publicarTermo '{"versao":"1","texto":"..."}'
  */
 export const publicarTermo = internalMutation({
@@ -185,186 +608,58 @@ export const publicarTermo = internalMutation({
   },
 });
 
-async function termoAtual(ctx: QueryCtx | MutationCtx) {
-  return await ctx.db
-    .query('termosConsentimento')
-    .withIndex('by_publicadoEm')
-    .order('desc')
-    .first();
-}
-
-async function temConsentimentoAtual(ctx: QueryCtx | MutationCtx, paciente: Doc<'pacientes'>) {
-  const termo = await termoAtual(ctx);
-  return termo !== null && paciente.consentimento?.versaoTermo === termo.versao;
-}
-
 // ---------------------------------------------------------------------------
-// Site: reading and routing
+// Test data reset
 // ---------------------------------------------------------------------------
 
-/** Central team: patients waiting to be routed to a hospital. */
-export const listarSemHospital = query({
-  args: { paginationOpts: paginationOptsValidator },
-  handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx, await requireUserId(ctx));
-    const pagina = await ctx.db
-      .query('pacientes')
-      .withIndex('by_organizationId', (q) => q.eq('organizationId', undefined))
-      .order('desc')
-      .paginate(args.paginationOpts);
-    return { ...pagina, page: pagina.page.map(resumoDaPaciente) };
-  },
-});
-
-/** Hospital team: its own patients. */
-export const listarDoHospital = query({
-  args: { organizationId: v.string(), paginationOpts: paginationOptsValidator },
-  handler: async (ctx, args) => {
-    await requireMembroDoHospital(ctx, args.organizationId);
-    const pagina = await ctx.db
-      .query('pacientes')
-      .withIndex('by_organizationId', (q) => q.eq('organizationId', args.organizationId))
-      .order('desc')
-      .paginate(args.paginationOpts);
-    return { ...pagina, page: pagina.page.map(resumoDaPaciente) };
-  },
-});
-
-/** Conversation of one patient, newest first. */
-export const listarMensagens = query({
-  args: { pacienteId: v.id('pacientes'), paginationOpts: paginationOptsValidator },
-  handler: async (ctx, args) => {
-    await requireAcessoAPaciente(ctx, args.pacienteId);
-    return await ctx.db
-      .query('mensagensConversa')
-      .withIndex('by_pacienteId_and_enviadaEm', (q) => q.eq('pacienteId', args.pacienteId))
-      .order('desc')
-      .paginate(args.paginationOpts);
-  },
-});
-
-/** Central team: sends a patient with no hospital to a hospital. */
-export const encaminharParaHospital = mutation({
-  args: { pacienteId: v.id('pacientes'), organizationId: v.string() },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx, await requireUserId(ctx));
-    const paciente = await ctx.db.get('pacientes', args.pacienteId);
-    if (!paciente) {
-      throw new ConvexError('Paciente não encontrada.');
-    }
-    if (paciente.organizationId) {
-      throw new ConvexError('Esta paciente já foi encaminhada para um hospital.');
-    }
-    if (!(await tenantsClient.getOrganization(ctx, args.organizationId))) {
-      throw new ConvexError('Hospital não encontrado.');
-    }
-    await ctx.db.patch('pacientes', paciente._id, { organizationId: args.organizationId });
-    return null;
-  },
-});
-
-function resumoDaPaciente(paciente: Doc<'pacientes'>) {
-  return {
-    _id: paciente._id,
-    telefone: paciente.telefone,
-    criadaEm: paciente.criadaEm,
-    aceitouTermo: paciente.consentimento !== undefined,
-    exclusaoPedidaEm: paciente.exclusaoPedidaEm ?? null,
-  };
-}
-
-/** Hospital members only — the central team does not read routed conversations. */
-async function requireMembroDoHospital(ctx: QueryCtx | MutationCtx, organizationId: string) {
-  const userId = await requireUserId(ctx);
-  const membro = await tenantsClient.getMember(ctx, organizationId, userId);
-  if (!membro) {
-    throw new ConvexError('Você não faz parte deste hospital.');
-  }
-  return userId;
-}
-
-async function requireAcessoAPaciente(ctx: QueryCtx | MutationCtx, pacienteId: Id<'pacientes'>) {
-  const paciente = await ctx.db.get('pacientes', pacienteId);
-  if (!paciente) {
-    throw new ConvexError('Paciente não encontrada.');
-  }
-  if (paciente.organizationId) {
-    await requireMembroDoHospital(ctx, paciente.organizationId);
-  } else {
-    await requirePlatformAdmin(ctx, await requireUserId(ctx));
-  }
-  return paciente;
-}
-
-// ---------------------------------------------------------------------------
-// Site: erasure
-// ---------------------------------------------------------------------------
-
-/** Central team: patients who asked to have their data deleted (phone and date only). */
-export const listarPedidosDeExclusao = query({
-  args: { paginationOpts: paginationOptsValidator },
-  handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx, await requireUserId(ctx));
-    const pagina = await ctx.db
-      .query('pacientes')
-      .withIndex('by_exclusaoPedidaEm', (q) => q.gt('exclusaoPedidaEm', 0))
-      .paginate(args.paginationOpts);
-    return { ...pagina, page: pagina.page.map(resumoDaPaciente) };
-  },
-});
+const CONFIRMACAO_APAGAR_TESTE = 'APAGAR DADOS DE TESTE';
+const TABELAS_DE_CONVERSA = [
+  'pacientes',
+  'mensagensConversa',
+  'alertasCrise',
+  'exclusoesRealizadas',
+  'canalMensagensRecebidas',
+  'canalConversas',
+  'canalMensagensPendentes',
+] as const;
+const TABELAS_DE_CONFIGURACAO = ['hospitais', 'palavrasDeRisco', 'termosConsentimento'] as const;
 
 /**
- * Central team: deletes everything about a patient. Her record disappears at once; her messages
- * and channel data are removed in batches right after.
+ * Deletes every patient, message, alert and channel record (and, with `incluirConfiguracao`,
+ * hospital codes, risk words and terms). Refuses to run outside simulated mode.
+ * Use `pnpm run dados:apagar-teste` instead of calling it by hand.
  */
-export const apagarDadosDaPaciente = mutation({
-  args: { pacienteId: v.id('pacientes') },
-  returns: v.null(),
+export const apagarDadosDeTeste = internalMutation({
+  args: { confirmar: v.string(), incluirConfiguracao: v.optional(v.boolean()) },
+  returns: v.object({ apagados: v.number(), continua: v.boolean() }),
   handler: async (ctx, args) => {
-    await requirePlatformAdmin(ctx, await requireUserId(ctx));
-    const paciente = await ctx.db.get('pacientes', args.pacienteId);
-    if (!paciente) {
-      throw new ConvexError('Paciente não encontrada.');
+    if (args.confirmar !== CONFIRMACAO_APAGAR_TESTE) {
+      throw new ConvexError(`Para confirmar, envie confirmar: "${CONFIRMACAO_APAGAR_TESTE}".`);
     }
-    await ctx.db.delete('pacientes', paciente._id);
-    await ctx.scheduler.runAfter(0, internal.pacientes.apagarRestoDosDados, {
-      pacienteId: paciente._id,
-      telefone: paciente.telefone,
-    });
-    return null;
-  },
-});
-
-export const apagarRestoDosDados = internalMutation({
-  args: { pacienteId: v.id('pacientes'), telefone: v.string() },
-  returns: v.null(),
-  handler: async (ctx, args) => {
-    const lotes = await Promise.all([
-      ctx.db
-        .query('mensagensConversa')
-        .withIndex('by_pacienteId_and_enviadaEm', (q) => q.eq('pacienteId', args.pacienteId))
-        .take(LOTE_EXCLUSAO),
-      ctx.db
-        .query('canalMensagensRecebidas')
-        .withIndex('by_telefone', (q) => q.eq('telefone', args.telefone))
-        .take(LOTE_EXCLUSAO),
-      ctx.db
-        .query('canalMensagensPendentes')
-        .withIndex('by_telefone', (q) => q.eq('telefone', args.telefone))
-        .take(LOTE_EXCLUSAO),
-      ctx.db
-        .query('canalConversas')
-        .withIndex('by_telefone', (q) => q.eq('telefone', args.telefone))
-        .take(LOTE_EXCLUSAO),
-    ]);
-    for (const documento of lotes.flat()) {
-      await ctx.db.delete(documento._id);
+    const simulado: boolean = await ctx.runQuery(internal.canal.estaEmModoSimulado, {});
+    if (!simulado) {
+      throw new ConvexError(
+        'O WhatsApp real está ligado: os dados de teste não podem ser apagados assim.'
+      );
     }
-    if (lotes.some((lote) => lote.length === LOTE_EXCLUSAO)) {
-      await ctx.scheduler.runAfter(0, internal.pacientes.apagarRestoDosDados, args);
+    const tabelas = [
+      ...TABELAS_DE_CONVERSA,
+      ...(args.incluirConfiguracao ? TABELAS_DE_CONFIGURACAO : []),
+    ];
+    let apagados = 0;
+    let continua = false;
+    for (const tabela of tabelas) {
+      const lote = await ctx.db.query(tabela).take(LOTE_EXCLUSAO);
+      for (const documento of lote) {
+        await ctx.db.delete(documento._id);
+      }
+      apagados += lote.length;
+      continua ||= lote.length === LOTE_EXCLUSAO;
     }
-    return null;
+    if (continua) {
+      await ctx.scheduler.runAfter(0, internal.pacientes.apagarDadosDeTeste, args);
+    }
+    return { apagados, continua };
   },
 });
 

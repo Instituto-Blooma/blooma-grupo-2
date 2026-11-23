@@ -19,20 +19,55 @@ Tudo o que é específico do WhatsApp (Cloud API oficial da Meta) fica em [`conv
 | A psicóloga ou o enfermeiro responde pelo site             | `enviarTexto` com `remetente: { tipo: 'profissional', nome, funcao }`. A mensagem começa com `*Ana (psicóloga):*`.                                                                          |
 | A resposta sai mais de 24 h depois da última mensagem dela | A mensagem fica guardada e a paciente recebe o aviso aprovado (`nova_mensagem_equipe`). Quando ela responder, tudo o que estava guardado é enviado. A função devolve `aguardando_paciente`. |
 
-## Pacientes, aceite do termo e histórico
+## Pacientes, hospital, crise, aceite e histórico
 
-Regras em [`convex/pacientes.ts`](../../convex/pacientes.ts):
+Regras em [`convex/pacientes.ts`](../../convex/pacientes.ts), nesta ordem para cada mensagem:
 
-- **Antes do aceite, nenhum texto é guardado.** Fica só o telefone. No primeiro contato o robô manda o termo com os botões "Aceito" e "Não aceito". Sem termo publicado, nada é guardado.
-- **Depois do aceite,** toda mensagem que entra e sai vai para `mensagensConversa`: da paciente, do robô ou da profissional. Se o termo mudar de versão, o robô pede o aceite de novo.
-- **Quem vê o quê:** a equipe central (administradores da plataforma) vê só as pacientes sem hospital (`listarSemHospital`) e as encaminha (`encaminharParaHospital`). Cada hospital vê só as próprias pacientes (`listarDoHospital`, `listarMensagens`).
-- **Apagar os dados:** a paciente escreve "apagar meus dados"; ela aparece em `listarPedidosDeExclusao` e a equipe central confirma com `apagarDadosDaPaciente`. Isso remove o cadastro, as mensagens e os registros do canal ligados ao telefone dela.
+1. **Palavras de risco** (lista editável, tabela `palavrasDeRisco`): se a mensagem tiver uma delas, o robô manda a mensagem fixa com o CVV (188) e o SAMU (192), e o hospital recebe um alerta só com telefone e horário. O texto não é guardado antes do aceite. Se ela ainda não escolheu o hospital, o alerta aparece para o hospital que ela escolher.
+2. **"apagar meus dados"**: o robô confirma o recebimento e o pedido aparece para a equipe do hospital dela (`listarPedidosDeExclusao`), que confirma no site (`apagarDadosDaPaciente`). Isso apaga o cadastro, as mensagens, os alertas e os registros do canal; fica só um registro mínimo (`exclusoesRealizadas`: hospital, quem apagou e quando).
+3. **Hospital**: se a mensagem tiver o código de um hospital ("Oi ACC"), ela fica ligada a ele. Sem código: com um hospital só cadastrado, ela é ligada a ele; com mais de um, o robô pergunta "Em qual hospital você faz tratamento?".
+4. **Termo**: antes do aceite, nenhum texto é guardado. O robô manda o termo com "Aceito" e "Não aceito". Sem termo publicado, nada é guardado. Se o termo mudar de versão, o robô pede o aceite de novo.
+5. **Histórico**: depois do aceite, toda mensagem que entra e sai vai para `mensagensConversa` (paciente, robô ou profissional).
 
-Publicar o termo (até existir uma tela para isso):
+**Quem vê o quê:** cada hospital (organização) vê só as próprias pacientes, conversas, alertas e pedidos (`listarPacientes`, `listarMensagens`, `listarAlertasDeCrise`, `listarPedidosDeExclusao`). Uma paciente ainda sem hospital não aparece para ninguém.
+
+### Configurar (até existirem telas para isso)
 
 ```bash
-npx convex run pacientes:publicarTermo '{"versao":"1","texto":"Texto curto do termo, com o link do termo completo"}'
+# Cadastrar um hospital no robô (o ID é o da organização, visto no painel do Convex ou no site)
+npx convex run pacientes:definirCodigoDoHospital '{"organizationId":"<id>","codigo":"ACC"}'
+
+# Palavras de risco (definidas pela equipe de psicologia)
+npx convex run pacientes:adicionarPalavraDeRisco '{"termo":"..."}'
+npx convex run pacientes:removerPalavraDeRisco '{"termo":"..."}'
+
+# Termo de consentimento (texto curto, com o link do termo completo)
+npx convex run pacientes:publicarTermo '{"versao":"1","texto":"..."}'
+
+# Ver os hospitais cadastrados e o texto de cada link
+npx convex run pacientes:listarHospitais
 ```
+
+Esses comandos usam aspas simples, que funcionam no Git Bash, no macOS e no Linux. No PowerShell ou no Prompt de Comando do Windows, use o Git Bash ou o painel do Convex (aba Functions).
+
+### Link wa.me por hospital
+
+O link abre o WhatsApp com a mensagem já escrita. Formato:
+
+```
+https://wa.me/<número do robô só com dígitos>?text=Oi%20<CÓDIGO>
+```
+
+Exemplo, se o número do robô fosse +55 11 99999-0000 e o código ACC: `https://wa.me/5511999990000?text=Oi%20ACC`. O `%20` é o espaço. Esse link pode virar QR code em qualquer gerador de QR. O número é o que a Meta der para a conta do WhatsApp Business.
+
+### Apagar os dados de teste
+
+```bash
+pnpm run dados:apagar-teste          # pacientes, mensagens, alertas, exclusões e registros do canal
+pnpm run dados:apagar-teste --tudo   # também códigos de hospital, palavras de risco e termos
+```
+
+O comando se recusa a rodar se o WhatsApp real estiver ligado (com `WHATSAPP_TOKEN`).
 
 ## Modo simulado
 

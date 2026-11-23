@@ -115,7 +115,7 @@ const schema = defineSchema({
   }).index('by_telefone', ['telefone']),
 
   // Patients and their conversation — owned by convex/pacientes.ts.
-  // `organizationId` (the hospital) stays empty until the central team routes the patient.
+  // `organizationId` (the hospital) stays empty until the patient is linked to one.
   pacientes: defineTable({
     telefone: v.string(),
     organizationId: v.optional(v.string()),
@@ -125,7 +125,38 @@ const schema = defineSchema({
   })
     .index('by_telefone', ['telefone'])
     .index('by_organizationId', ['organizationId'])
-    .index('by_exclusaoPedidaEm', ['exclusaoPedidaEm']),
+    .index('by_organizationId_and_exclusaoPedidaEm', ['organizationId', 'exclusaoPedidaEm']),
+
+  // Hospitals the bot serves: one organization each, with a short code ("ACC") that links a
+  // patient whose first message contains it (e.g. from a wa.me link or QR code).
+  hospitais: defineTable({
+    organizationId: v.string(),
+    codigo: v.string(),
+  })
+    .index('by_codigo', ['codigo'])
+    .index('by_organizationId', ['organizationId']),
+
+  // Editable list of risk words/phrases (stored normalized: lowercase, no accents).
+  palavrasDeRisco: defineTable({
+    termo: v.string(),
+    criadaEm: v.number(),
+  }).index('by_termo', ['termo']),
+
+  // Crisis alerts: phone and time only, never the text. No hospital yet = shown once linked.
+  alertasCrise: defineTable({
+    telefone: v.string(),
+    organizationId: v.optional(v.string()),
+    criadoEm: v.number(),
+  })
+    .index('by_telefone', ['telefone'])
+    .index('by_organizationId_and_criadoEm', ['organizationId', 'criadoEm']),
+
+  // Minimal record that a patient's data was deleted — nothing about the patient herself.
+  exclusoesRealizadas: defineTable({
+    organizationId: v.string(),
+    apagadoPor: v.id('users'),
+    apagadoEm: v.number(),
+  }).index('by_organizationId', ['organizationId']),
 
   // Stored only after the patient accepted the current consent term.
   mensagensConversa: defineTable({
