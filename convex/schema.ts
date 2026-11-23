@@ -2,6 +2,32 @@ import { defineSchema, defineTable } from 'convex/server';
 import { authTables } from '@convex-dev/auth/server';
 import { v } from 'convex/values';
 
+/** One option of a menu sent to a patient (button or list row). Used by `convex/canal.ts`. */
+export const opcaoMenuValidator = v.object({
+  id: v.string(),
+  titulo: v.string(),
+  descricao: v.optional(v.string()),
+});
+
+/** Provider-neutral outgoing message. `convex/canal.ts` turns it into the WhatsApp payload. */
+export const mensagemSaidaValidator = v.union(
+  v.object({ tipo: v.literal('texto'), texto: v.string() }),
+  v.object({ tipo: v.literal('botoes'), texto: v.string(), opcoes: v.array(opcaoMenuValidator) }),
+  v.object({
+    tipo: v.literal('lista'),
+    texto: v.string(),
+    textoBotao: v.string(),
+    opcoes: v.array(opcaoMenuValidator),
+  }),
+  v.object({
+    tipo: v.literal('midia'),
+    midia: v.union(v.literal('documento'), v.literal('video')),
+    url: v.string(),
+    legenda: v.optional(v.string()),
+    nomeArquivo: v.optional(v.string()),
+  })
+);
+
 const schema = defineSchema({
   ...authTables,
 
@@ -57,6 +83,27 @@ const schema = defineSchema({
   })
     .index('by_documentId', ['documentId'])
     .index('by_org_and_document', ['organizationId', 'documentId']),
+
+  // Messaging channel (WhatsApp today) — owned by convex/canal.ts.
+  // Only the provider message ID is kept here, never the patient's text.
+  canalMensagensRecebidas: defineTable({
+    mensagemId: v.string(),
+    telefone: v.string(),
+    recebidaEm: v.number(),
+  }).index('by_mensagemId', ['mensagemId']),
+
+  canalConversas: defineTable({
+    telefone: v.string(),
+    ultimaMensagemPacienteEm: v.number(),
+    menuAtual: v.optional(v.array(opcaoMenuValidator)),
+  }).index('by_telefone', ['telefone']),
+
+  // Messages held back because the 24h reply window was closed; sent when the patient writes.
+  canalMensagensPendentes: defineTable({
+    telefone: v.string(),
+    mensagem: mensagemSaidaValidator,
+    criadaEm: v.number(),
+  }).index('by_telefone', ['telefone']),
 });
 
 export default schema;

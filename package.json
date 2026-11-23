@@ -33,7 +33,8 @@
     "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck:all",
     "check:fix": "pnpm run format && pnpm run lint:fix && pnpm run check",
     "check:all": "pnpm run check:fix",
-    "seed:dev": "node script/seed.mjs dev"
+    "seed:dev": "node script/seed.mjs dev",
+    "whatsapp:simular": "node script/simular-whatsapp.mjs"
   },
   "dependencies": {
     "@auth/core": "^0.37.4",

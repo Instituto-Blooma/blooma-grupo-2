@@ -10,6 +10,7 @@
 
 import type * as auth from "../auth.js";
 import type * as authz from "../authz.js";
+import type * as canal from "../canal.js";
 import type * as collab from "../collab.js";
 import type * as devForm from "../devForm.js";
 import type * as devFormSchemas from "../devFormSchemas.js";
@@ -45,6 +46,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   authz: typeof authz;
+  canal: typeof canal;
   collab: typeof collab;
   devForm: typeof devForm;
   devFormSchemas: typeof devFormSchemas;
