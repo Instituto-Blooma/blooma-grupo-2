@@ -15,6 +15,12 @@
  * - WHATSAPP_API_VERSION — Graph API version (default v23.0)
  * - WHATSAPP_TEMPLATE_AVISO, WHATSAPP_TEMPLATE_IDIOMA — approved template sent when the 24h
  *   reply window is closed (default `nova_mensagem_equipe`, `pt_BR`)
+ * - CANAL_TOLERAR_ERRO_DIGITACAO — `true` accepts a small typo in a typed option name.
+ *   Off by default: for the scales only the option number or the exact name counts.
+ * - CANAL_CARTILHA_URL, CANAL_CARTILHA_NOME — public link (and file name) of the guide on how to
+ *   use the service, sent again when the patient gets the same question wrong 3 times.
+ *
+ * Privacy: patient text is written to the logs only in simulated mode.
  *
  * Webhook routes are registered in `convex/http.ts` at `/whatsapp/webhook`.
  */
@@ -25,9 +31,16 @@ import {
   httpAction,
   internalAction,
   internalMutation,
+  internalQuery,
   type MutationCtx,
 } from './_generated/server';
-import { mensagemSaidaValidator, opcaoMenuValidator } from './schema';
+import { normalizarTexto } from './lib/texto';
+import {
+  receberMensagemDaPaciente,
+  registrarMensagemEnviada,
+  type RemetenteSaida,
+} from './pacientes';
+import { mensagemSaidaValidator, opcaoMenuValidator, perguntaValidator } from './schema';
 
 // ---------------------------------------------------------------------------
 // Provider-neutral shapes
@@ -44,11 +57,18 @@ export type MensagemRecebida = {
 };
 
 type MensagemSaida = Infer<typeof mensagemSaidaValidator>;
+type Pergunta = Infer<typeof perguntaValidator>;
 type OpcaoMenu = Infer<typeof opcaoMenuValidator>;
 
 const remetenteValidator = v.union(
   v.object({ tipo: v.literal('robo') }),
-  v.object({ tipo: v.literal('profissional'), nome: v.string(), funcao: v.string() })
+  v.object({
+    tipo: v.literal('profissional'),
+    nome: v.string(),
+    funcao: v.string(),
+    /** Who answered, for the conversation history on the site. */
+    usuarioId: v.optional(v.id('users')),
+  })
 );
 
 const resultadoEnvioValidator = v.object({
@@ -57,6 +77,13 @@ const resultadoEnvioValidator = v.object({
 
 /** WhatsApp only allows free-form messages up to 24h after the patient's last message. */
 const JANELA_RESPOSTA_MS = 24 * 60 * 60 * 1000;
+
+/** On the 3rd answer in a row that matches no option, the bot stops asking and the team takes over. */
+const MAX_TENTATIVAS_ERRADAS = 3;
+const MENSAGEM_NAO_ENTENDI =
+  'Não entendi sua resposta. Responda com o número ou o nome de uma das opções.';
+const MENSAGEM_EQUIPE_VAI_AJUDAR =
+  'Não consegui entender suas respostas. Alguém da equipe vai continuar a conversa com você por aqui.';
 
 const LIMITES = {
   texto: 4096,
@@ -87,7 +114,19 @@ function configuracao() {
     apiVersion: process.env.WHATSAPP_API_VERSION?.trim() || 'v23.0',
     templateAviso: process.env.WHATSAPP_TEMPLATE_AVISO?.trim() || 'nova_mensagem_equipe',
     idiomaTemplate: process.env.WHATSAPP_TEMPLATE_IDIOMA?.trim() || 'pt_BR',
+    tolerarErroDeDigitacao: process.env.CANAL_TOLERAR_ERRO_DIGITACAO?.trim() === 'true',
+    cartilhaUrl: process.env.CANAL_CARTILHA_URL?.trim() || null,
+    cartilhaNome: process.env.CANAL_CARTILHA_NOME?.trim() || 'cartilha.pdf',
   };
+}
+
+/** Logs patient data only while simulating; in real mode only the event name is kept. */
+function logarSimulado(evento: string, dados: Record<string, unknown>) {
+  if (configuracao().simulado) {
+    console.log(evento, JSON.stringify(dados));
+  } else {
+    console.log(evento);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -239,12 +278,28 @@ export const registrarMensagemRecebida = internalMutation({
     });
 
     const conversa = await buscarConversa(ctx, args.telefone);
-    const opcaoEscolhida =
-      args.idEscolhido ?? resolverOpcaoDigitada(args.texto, conversa?.menuAtual);
+    const pergunta = conversa?.perguntaAtual;
+    const opcaoEscolhida = pergunta
+      ? escolherOpcao(pergunta, args.texto, args.idEscolhido)
+      : args.idEscolhido;
+
+    // Open question + no matching option = wrong answer; the 3rd one in a row goes to the team.
+    const tentativasErradas =
+      pergunta && !opcaoEscolhida ? (conversa?.tentativasErradas ?? 0) + 1 : 0;
+    const desfecho = !pergunta
+      ? 'sem_pergunta'
+      : opcaoEscolhida
+        ? 'respondida'
+        : tentativasErradas >= MAX_TENTATIVAS_ERRADAS
+          ? 'encaminhar_equipe'
+          : 'repetir_pergunta';
+    const perguntaContinua = desfecho === 'repetir_pergunta';
 
     if (conversa) {
       await ctx.db.patch('canalConversas', conversa._id, {
         ultimaMensagemPacienteEm: Math.max(conversa.ultimaMensagemPacienteEm, args.recebidaEm),
+        perguntaAtual: perguntaContinua ? pergunta : undefined,
+        tentativasErradas: perguntaContinua ? tentativasErradas : undefined,
       });
     } else {
       await ctx.db.insert('canalConversas', {
@@ -256,6 +311,14 @@ export const registrarMensagemRecebida = internalMutation({
     // The patient wrote, so the 24h window is open again: send what was waiting for her.
     await enviarPendentes(ctx, args.telefone);
 
+    if (pergunta && desfecho === 'repetir_pergunta') {
+      await repetirPergunta(ctx, args.telefone, pergunta);
+    } else if (desfecho === 'encaminhar_equipe') {
+      await encaminharParaEquipe(ctx, args.telefone);
+    }
+
+    // Every message reaches the triage — including answers that matched no option, so a
+    // written request for help is never lost.
     await entregarParaTriagem(ctx, {
       telefone: args.telefone,
       texto: args.texto,
@@ -269,8 +332,84 @@ export const registrarMensagemRecebida = internalMutation({
  * The single hand-off point from the channel to the rest of the product.
  * The triage flow plugs in here; it only ever receives `{ telefone, texto, opcaoEscolhida }`.
  */
-async function entregarParaTriagem(_ctx: MutationCtx, mensagem: MensagemRecebida) {
-  console.log('[canal] mensagem recebida', JSON.stringify(mensagem));
+async function entregarParaTriagem(ctx: MutationCtx, mensagem: MensagemRecebida) {
+  logarSimulado('[canal] mensagem recebida', mensagem);
+  await receberMensagemDaPaciente(ctx, mensagem);
+}
+
+/**
+ * The bot gives up on a question (3 wrong answers in a row): tells the patient a person will
+ * take over and sends the guide on how to use the service again (when CANAL_CARTILHA_URL is set).
+ * The team queue will plug in here to mark the conversation for a person; for now it is logged.
+ */
+async function encaminharParaEquipe(ctx: MutationCtx, telefone: string) {
+  const { cartilhaUrl, cartilhaNome } = configuracao();
+  const mensagens: MensagemSaida[] = [{ tipo: 'texto', texto: MENSAGEM_EQUIPE_VAI_AJUDAR }];
+  if (cartilhaUrl) {
+    const cartilha: MensagemSaida = {
+      tipo: 'midia',
+      midia: 'documento',
+      url: cartilhaUrl,
+      legenda: 'Cartilha: como usar o atendimento por aqui',
+      nomeArquivo: cartilhaNome,
+    };
+    try {
+      validarMensagem(cartilha);
+      mensagens.push(cartilha);
+    } catch {
+      // A wrong setting must not stop the patient's message from being handled.
+      console.error('[canal] CANAL_CARTILHA_URL inválida: cartilha não enviada');
+    }
+  }
+  await agendarEmSequenciaDoRobo(ctx, telefone, mensagens);
+  logarSimulado('[canal] conversa precisa da equipe', { telefone });
+}
+
+/** Robot messages that must arrive in this order; each is also kept in the conversation history. */
+async function agendarEmSequenciaDoRobo(
+  ctx: MutationCtx,
+  telefone: string,
+  mensagens: MensagemSaida[]
+) {
+  for (const mensagem of mensagens) {
+    validarMensagem(mensagem);
+    await registrarMensagemEnviada(ctx, telefone, textoParaHistorico(mensagem), { tipo: 'robo' });
+  }
+  await ctx.scheduler.runAfter(0, internal.canal.entregarEmSequencia, { telefone, mensagens });
+}
+
+/** Whether the patient has a question with options waiting for her answer. */
+export const temPerguntaAberta = internalQuery({
+  args: { telefone: v.string() },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const conversa = await ctx.db
+      .query('canalConversas')
+      .withIndex('by_telefone', (q) => q.eq('telefone', args.telefone))
+      .unique();
+    return conversa?.perguntaAtual !== undefined;
+  },
+});
+
+/**
+ * Which option an answer picks for the open question, or `null`.
+ * A tap counts only if it is an option of this question (not a button from an older message).
+ */
+function escolherOpcao(pergunta: Pergunta, texto: string, idEscolhido: string | null) {
+  if (idEscolhido !== null) {
+    return pergunta.opcoes.some((opcao) => opcao.id === idEscolhido) ? idEscolhido : null;
+  }
+  return resolverOpcaoDigitada(texto, pergunta.opcoes, {
+    tolerarErroDeDigitacao: configuracao().tolerarErroDeDigitacao,
+  });
+}
+
+/** Sends the open question again, starting with "Não entendi…". The window is open: she just wrote. */
+async function repetirPergunta(ctx: MutationCtx, telefone: string, pergunta: Pergunta) {
+  const comAviso = `${MENSAGEM_NAO_ENTENDI}\n\n${pergunta.texto}`;
+  // One message (not two) so the warning can never arrive after the question.
+  const texto = comAviso.length <= LIMITES.corpoInterativo ? comAviso : pergunta.texto;
+  await agendarEmSequenciaDoRobo(ctx, telefone, [{ ...pergunta, texto }]);
 }
 
 // ---------------------------------------------------------------------------
@@ -278,11 +417,16 @@ async function entregarParaTriagem(_ctx: MutationCtx, mensagem: MensagemRecebida
 // ---------------------------------------------------------------------------
 
 /**
- * Turns what the patient typed into a menu option ID, using the last menu she was sent.
- * Accepts the option number ("2", "2.", "opção 2") or its name, ignoring accents and case,
- * with a small typo tolerance as long as only one option is that close.
+ * Turns what the patient typed into an option ID of the open question.
+ * Accepts the option number ("2", "2.", "opção 2") or the exact option name, ignoring accents,
+ * case and punctuation ("insonia" = "Insônia"). With `tolerarErroDeDigitacao` it also accepts a
+ * small typo ("ansieade") when only one option is that close — off unless the team approves it.
  */
-export function resolverOpcaoDigitada(texto: string, menu: OpcaoMenu[] | undefined): string | null {
+export function resolverOpcaoDigitada(
+  texto: string,
+  menu: OpcaoMenu[] | undefined,
+  { tolerarErroDeDigitacao = false }: { tolerarErroDeDigitacao?: boolean } = {}
+): string | null {
   if (!menu || menu.length === 0) return null;
 
   const numero = /^\s*(?:op[cç][aã]o\s*)?(\d{1,2})\s*[.):-]?\s*$/i.exec(texto);
@@ -291,32 +435,22 @@ export function resolverOpcaoDigitada(texto: string, menu: OpcaoMenu[] | undefin
     return menu[indice]?.id ?? null;
   }
 
-  const digitado = normalizar(texto);
+  const digitado = normalizarTexto(texto);
   if (!digitado) return null;
 
-  const exatas = menu.filter((opcao) => normalizar(opcao.titulo) === digitado);
+  const exatas = menu.filter((opcao) => normalizarTexto(opcao.titulo) === digitado);
   if (exatas.length === 1) return exatas[0].id;
-  if (exatas.length > 1) return null;
+  if (exatas.length > 1 || !tolerarErroDeDigitacao) return null;
 
   const tolerancia = digitado.length >= 8 ? 2 : digitado.length >= 4 ? 1 : 0;
   if (tolerancia === 0) return null;
   const distancias = menu.map((opcao) => ({
     id: opcao.id,
-    distancia: distanciaEdicao(digitado, normalizar(opcao.titulo)),
+    distancia: distanciaEdicao(digitado, normalizarTexto(opcao.titulo)),
   }));
   const melhor = Math.min(...distancias.map((d) => d.distancia));
   const empatadas = distancias.filter((d) => d.distancia === melhor);
   return melhor <= tolerancia && empatadas.length === 1 ? empatadas[0].id : null;
-}
-
-function normalizar(texto: string): string {
-  return texto
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9 ]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
 }
 
 /** Levenshtein distance between two short strings. */
@@ -354,7 +488,11 @@ export const enviarTexto = internalMutation({
       }
       texto = `*${primeiroNome} (${funcao}):*\n${texto}`;
     }
-    return await enviarOuGuardar(ctx, args.telefone, { tipo: 'texto', texto });
+    const remetente =
+      args.remetente.tipo === 'profissional'
+        ? { tipo: 'profissional' as const, usuarioId: args.remetente.usuarioId }
+        : { tipo: 'robo' as const };
+    return await enviarOuGuardar(ctx, args.telefone, { tipo: 'texto', texto }, remetente);
   },
 });
 
@@ -413,10 +551,13 @@ export const enviarMidia = internalMutation({
 async function enviarOuGuardar(
   ctx: MutationCtx,
   telefoneInformado: string,
-  mensagem: MensagemSaida
+  mensagem: MensagemSaida,
+  remetente: RemetenteSaida = { tipo: 'robo' }
 ): Promise<Infer<typeof resultadoEnvioValidator>> {
   const telefone = validarTelefone(telefoneInformado);
   validarMensagem(mensagem);
+  // Kept in the history when it is sent, even if it waits for the 24h window to reopen.
+  await registrarMensagemEnviada(ctx, telefone, textoParaHistorico(mensagem), remetente);
 
   const conversa = await buscarConversa(ctx, telefone);
   const agora = Date.now();
@@ -453,7 +594,10 @@ async function enviarPendentes(ctx: MutationCtx, telefone: string) {
   }
 }
 
-/** Schedules delivery and remembers the menu so a typed "2" or "insônia" can be matched. */
+/**
+ * Schedules delivery. A new question (buttons or list) becomes the open question, so a typed
+ * "2" or "insônia" can be matched, and its wrong-answer count starts over.
+ */
 async function agendarEntrega(
   ctx: MutationCtx,
   conversa: Doc<'canalConversas'> | null,
@@ -461,7 +605,10 @@ async function agendarEntrega(
   mensagem: MensagemSaida
 ) {
   if (conversa && (mensagem.tipo === 'botoes' || mensagem.tipo === 'lista')) {
-    await ctx.db.patch('canalConversas', conversa._id, { menuAtual: mensagem.opcoes });
+    await ctx.db.patch('canalConversas', conversa._id, {
+      perguntaAtual: mensagem,
+      tentativasErradas: 0,
+    });
   }
   await ctx.scheduler.runAfter(0, internal.canal.entregar, { telefone, mensagem });
 }
@@ -474,6 +621,37 @@ export const entregar = internalAction({
     return null;
   },
 });
+
+/** Sends several messages one after the other, so they arrive in this order. */
+export const entregarEmSequencia = internalAction({
+  args: { telefone: v.string(), mensagens: v.array(mensagemSaidaValidator) },
+  returns: v.null(),
+  handler: async (_ctx, args) => {
+    for (const mensagem of args.mensagens) {
+      await chamarCloudApi(args.telefone, conteudoWhatsApp(mensagem));
+    }
+    return null;
+  },
+});
+
+/** Readable version of an outgoing message for the conversation history on the site. */
+function textoParaHistorico(mensagem: MensagemSaida): string {
+  switch (mensagem.tipo) {
+    case 'texto':
+      return mensagem.texto;
+    case 'botoes':
+    case 'lista':
+      return [
+        mensagem.texto,
+        ...mensagem.opcoes.map((opcao, indice) => `${indice + 1}. ${opcao.titulo}`),
+      ].join('\n');
+    case 'midia': {
+      const rotulo = mensagem.midia === 'documento' ? 'Documento' : 'Vídeo';
+      const detalhe = mensagem.legenda ?? mensagem.nomeArquivo ?? mensagem.url;
+      return `[${rotulo}] ${detalhe}`;
+    }
+  }
+}
 
 export const entregarAviso = internalAction({
   args: { telefone: v.string() },
