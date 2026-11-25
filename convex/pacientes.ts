@@ -451,6 +451,10 @@ export const apagarRestoDosDados = internalMutation({
         .query('alertasPaciente')
         .withIndex('by_pacienteId_and_criadoEm', (q) => q.eq('pacienteId', args.pacienteId))
         .take(LOTE_EXCLUSAO),
+      ctx.db
+        .query('eventosCaso')
+        .withIndex('by_pacienteId_and_em', (q) => q.eq('pacienteId', args.pacienteId))
+        .take(LOTE_EXCLUSAO),
     ]);
     for (const documento of lotes.flat()) {
       await ctx.db.delete(documento._id);
@@ -472,7 +476,7 @@ function resumoDaPaciente(paciente: Doc<'pacientes'>) {
   };
 }
 
-async function requireMembroDoHospital(ctx: QueryCtx | MutationCtx, organizationId: string) {
+export async function requireMembroDoHospital(ctx: QueryCtx | MutationCtx, organizationId: string) {
   const userId = await requireUserId(ctx);
   const membro = await tenantsClient.getMember(ctx, organizationId, userId);
   if (!membro) {
@@ -482,7 +486,10 @@ async function requireMembroDoHospital(ctx: QueryCtx | MutationCtx, organization
 }
 
 /** Only members of the patient's hospital; a patient with no hospital yet is seen by no one. */
-async function requireAcessoAPaciente(ctx: QueryCtx | MutationCtx, pacienteId: Id<'pacientes'>) {
+export async function requireAcessoAPaciente(
+  ctx: QueryCtx | MutationCtx,
+  pacienteId: Id<'pacientes'>
+) {
   const paciente = await ctx.db.get('pacientes', pacienteId);
   if (!paciente?.organizationId) {
     throw new ConvexError('Paciente não encontrada.');
@@ -637,6 +644,7 @@ const TABELAS_DE_CONVERSA = [
   'canalMensagensPendentes',
   'checkins',
   'alertasPaciente',
+  'eventosCaso',
 ] as const;
 const TABELAS_DE_CONFIGURACAO = [
   'hospitais',

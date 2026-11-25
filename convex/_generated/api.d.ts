@@ -16,6 +16,7 @@ import type * as crons from "../crons.js";
 import type * as devForm from "../devForm.js";
 import type * as devFormSchemas from "../devFormSchemas.js";
 import type * as emails from "../emails.js";
+import type * as equipe from "../equipe.js";
 import type * as files from "../files.js";
 import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
@@ -57,6 +58,7 @@ declare const fullApi: ApiFromModules<{
   devForm: typeof devForm;
   devFormSchemas: typeof devFormSchemas;
   emails: typeof emails;
+  equipe: typeof equipe;
   files: typeof files;
   http: typeof http;
   "lib/auth": typeof lib_auth;

@@ -158,7 +158,28 @@ const schema = defineSchema({
       'naFila',
       'ordemFila',
       'naFilaDesde',
-    ]),
+    ])
+    .searchIndex('search_nomeCompleto', {
+      searchField: 'nomeCompleto',
+      filterFields: ['organizationId'],
+    }),
+
+  // How each team member appears to patients: "*Ana (psicóloga):*". Filled on first access.
+  perfisEquipe: defineTable({
+    userId: v.id('users'),
+    nome: v.string(),
+    funcao: v.string(),
+    atualizadoEm: v.number(),
+  }).index('by_userId', ['userId']),
+
+  // Case history: who took over and who closed it, and when.
+  eventosCaso: defineTable({
+    pacienteId: v.id('pacientes'),
+    organizationId: v.string(),
+    usuarioId: v.id('users'),
+    tipo: v.union(v.literal('assumiu'), v.literal('concluiu')),
+    em: v.number(),
+  }).index('by_pacienteId_and_em', ['pacienteId', 'em']),
 
   // Triage scale versions (data, so the psychology team can replace them). The most recent one
   // is used for new check-ins. See convex/lib/escala.ts.
