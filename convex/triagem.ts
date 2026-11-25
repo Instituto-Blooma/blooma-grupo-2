@@ -406,8 +406,8 @@ export async function colocarNaFila(
     naFilaDesde: aberto ? (paciente.naFilaDesde ?? Date.now()) : Date.now(),
     situacaoCaso: aberto ? (paciente.situacaoCaso ?? 'aguardando') : 'aguardando',
     responsavelId: aberto ? paciente.responsavelId : undefined,
-    casoComRisco: (aberto && paciente.casoComRisco === true) || alerta === 'risco',
-    casoNaoEntendido: (aberto && paciente.casoNaoEntendido === true) || alerta === 'nao_entendeu',
+    alertaRisco: (aberto && paciente.alertaRisco === true) || alerta === 'risco',
+    alertaRobo: (aberto && paciente.alertaRobo === true) || alerta === 'nao_entendeu',
   });
 }
 

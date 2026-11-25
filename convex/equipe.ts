@@ -108,21 +108,21 @@ export const fila = query({
     const pagina = await (
       filtro === 'risco'
         ? consulta.withIndex(
-            'by_organizationId_and_naFila_and_casoComRisco_and_ordemFila_and_naFilaDesde',
+            'by_organizationId_and_alertaRisco_and_ordemFila_and_naFilaDesde',
             (q) =>
               q
                 .eq('organizationId', args.organizationId)
-                .eq('naFila', true)
-                .eq('casoComRisco', true)
+
+                .eq('alertaRisco', true)
           )
         : filtro === 'nao_entendeu'
           ? consulta.withIndex(
-              'by_organizationId_and_naFila_and_casoNaoEntendido_and_ordemFila_and_naFilaDesde',
+              'by_organizationId_and_alertaRobo_and_ordemFila_and_naFilaDesde',
               (q) =>
                 q
                   .eq('organizationId', args.organizationId)
-                  .eq('naFila', true)
-                  .eq('casoNaoEntendido', true)
+
+                  .eq('alertaRobo', true)
             )
           : consulta.withIndex('by_organizationId_and_naFila_and_ordemFila_and_naFilaDesde', (q) =>
               q.eq('organizationId', args.organizationId).eq('naFila', true)
@@ -143,21 +143,17 @@ export const resumoDaFila = query({
     const [comRisco, naoEntendidos, avisos] = await Promise.all([
       ctx.db
         .query('pacientes')
-        .withIndex(
-          'by_organizationId_and_naFila_and_casoComRisco_and_ordemFila_and_naFilaDesde',
-          (q) =>
-            q.eq('organizationId', args.organizationId).eq('naFila', true).eq('casoComRisco', true)
+        .withIndex('by_organizationId_and_alertaRisco_and_ordemFila_and_naFilaDesde', (q) =>
+          q.eq('organizationId', args.organizationId).eq('alertaRisco', true)
         )
         .take(MAX_CONTAGEM + 1),
       ctx.db
         .query('pacientes')
-        .withIndex(
-          'by_organizationId_and_naFila_and_casoNaoEntendido_and_ordemFila_and_naFilaDesde',
-          (q) =>
-            q
-              .eq('organizationId', args.organizationId)
-              .eq('naFila', true)
-              .eq('casoNaoEntendido', true)
+        .withIndex('by_organizationId_and_alertaRobo_and_ordemFila_and_naFilaDesde', (q) =>
+          q
+            .eq('organizationId', args.organizationId)
+
+            .eq('alertaRobo', true)
         )
         .take(MAX_CONTAGEM + 1),
       ctx.db
@@ -316,8 +312,8 @@ async function linhaDaPaciente(ctx: QueryCtx, paciente: Doc<'pacientes'>) {
     cadastroCompleto: paciente.cadastroConcluidoEm !== undefined,
     prioridade: paciente.prioridade ?? null,
     ultimaPrioridade: paciente.ultimaPrioridade ?? null,
-    casoComRisco: paciente.naFila === true && paciente.casoComRisco === true,
-    casoNaoEntendido: paciente.naFila === true && paciente.casoNaoEntendido === true,
+    alertaRisco: paciente.naFila === true && paciente.alertaRisco === true,
+    alertaRobo: paciente.naFila === true && paciente.alertaRobo === true,
     ultimaPontuacao: paciente.ultimaPontuacao ?? null,
     ultimoCheckinEm: paciente.ultimoCheckinEm ?? null,
     checkinEmAndamento: paciente.checkinAtualId !== undefined,
@@ -463,8 +459,8 @@ export const assumirCaso = mutation({
         : prioridade
           ? ORDEM_PRIORIDADE[prioridade]
           : ORDEM_SEM_PRIORIDADE,
-      casoComRisco: aberto ? paciente.casoComRisco === true : false,
-      casoNaoEntendido: aberto ? paciente.casoNaoEntendido === true : false,
+      alertaRisco: aberto ? paciente.alertaRisco === true : false,
+      alertaRobo: aberto ? paciente.alertaRobo === true : false,
     });
     await registrarEvento(ctx, paciente, userId, 'assumiu');
     return null;
@@ -483,6 +479,8 @@ export const concluirCaso = mutation({
     await ctx.db.patch('pacientes', paciente._id, {
       naFila: false,
       situacaoCaso: 'concluido',
+      alertaRisco: false,
+      alertaRobo: false,
     });
     await registrarEvento(ctx, paciente, userId, 'concluiu');
     return null;

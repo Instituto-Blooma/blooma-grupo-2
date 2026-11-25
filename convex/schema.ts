@@ -151,10 +151,12 @@ const schema = defineSchema({
     responsavelId: v.optional(v.id('users')),
     /** Priority of the last finished check-in (also when it opened no case). */
     ultimaPrioridade: v.optional(prioridadeValidator),
+    // The two alert flags are true only while the case is open (closing the case clears them),
+    // so their indexes do not need `naFila`. Index names must be 64 characters or less.
     /** Open case has a real-risk alert (risk answer or risk word): queue filter "Risco". */
-    casoComRisco: v.optional(v.boolean()),
+    alertaRisco: v.optional(v.boolean()),
     /** Open case has the "bot did not understand her" alert: queue filter. */
-    casoNaoEntendido: v.optional(v.boolean()),
+    alertaRobo: v.optional(v.boolean()),
   })
     .index('by_telefone', ['telefone'])
     .index('by_organizationId', ['organizationId'])
@@ -165,17 +167,15 @@ const schema = defineSchema({
       'ordemFila',
       'naFilaDesde',
     ])
-    .index('by_organizationId_and_naFila_and_casoComRisco_and_ordemFila_and_naFilaDesde', [
+    .index('by_organizationId_and_alertaRisco_and_ordemFila_and_naFilaDesde', [
       'organizationId',
-      'naFila',
-      'casoComRisco',
+      'alertaRisco',
       'ordemFila',
       'naFilaDesde',
     ])
-    .index('by_organizationId_and_naFila_and_casoNaoEntendido_and_ordemFila_and_naFilaDesde', [
+    .index('by_organizationId_and_alertaRobo_and_ordemFila_and_naFilaDesde', [
       'organizationId',
-      'naFila',
-      'casoNaoEntendido',
+      'alertaRobo',
       'ordemFila',
       'naFilaDesde',
     ])

@@ -64,8 +64,8 @@ export function LinhasPacientes({
                   {linha.naFila || mostrarCaso === 'fila' ? (
                     <SeloPrioridade prioridade={linha.prioridade} />
                   ) : null}
-                  {linha.casoComRisco ? <SeloAlerta categoria="risco" /> : null}
-                  {linha.casoNaoEntendido ? <SeloAlerta categoria="nao_entendeu" /> : null}
+                  {linha.alertaRisco ? <SeloAlerta categoria="risco" /> : null}
+                  {linha.alertaRobo ? <SeloAlerta categoria="nao_entendeu" /> : null}
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                   <span>{formatarTelefone(linha.telefone)}</span>
