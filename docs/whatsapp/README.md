@@ -29,6 +29,32 @@ Regras em [`convex/pacientes.ts`](../../convex/pacientes.ts), nesta ordem para c
 4. **Termo**: antes do aceite, nenhum texto é guardado. O robô manda o termo com "Aceito" e "Não aceito". Sem termo publicado, nada é guardado. Se o termo mudar de versão, o robô pede o aceite de novo.
 5. **Histórico**: depois do aceite, toda mensagem que entra e sai vai para `mensagensConversa` (paciente, robô ou profissional).
 
+## Triagem: cadastro, check-in e prioridade
+
+Regras em [`convex/triagem.ts`](../../convex/triagem.ts) e [`convex/lib/escala.ts`](../../convex/lib/escala.ts):
+
+1. **Cadastro** (logo depois do aceite): o robô pergunta o nome completo, depois como ela gosta de ser chamada e depois o número do prontuário ("NÃO SEI" vale). A equipe pode corrigir no site.
+2. **Check-in**: uma pergunta por vez, com botões (até 3 opções) ou lista (de 4 a 10). Cada resposta vale pontos.
+3. **Regra fixa de prioridade**: qualquer resposta de risco → **urgente**. Sem risco, a soma decide: a partir de `altaAPartirDe` → **alta**; a partir de `moderadaAPartirDe` → **moderada**; abaixo → **baixa**. Nenhuma IA decide nada.
+4. **Resposta de risco**: o caso fica urgente na fila na hora. A paciente termina o check-in e, na mensagem final, recebe o CVV (188) e o SAMU (192).
+5. **Palavra de risco escrita**: o robô manda o CVV e o SAMU na hora (como antes), o check-in em andamento para e o caso fica urgente.
+6. **Robô não entendeu** (3 respostas erradas seguidas): o check-in para e o caso vai para a fila com o alerta "o robô não entendeu".
+7. **Toda semana**: segunda-feira às 9h (Brasília), toda paciente com cadastro completo recebe um check-in novo ([`convex/crons.ts`](../../convex/crons.ts)). Um check-in da semana anterior sem resposta fica como "interrompido".
+
+Cada check-in concluído abre um caso na fila da equipe (ou atualiza o caso aberto). Num caso aberto, a prioridade só sobe: quem fecha o caso é a equipe.
+
+### A escala é dado (EXEMPLO por enquanto)
+
+A escala fica na tabela `escalasTriagem`; a mais recente vale para os próximos check-ins. Enquanto nenhuma for publicada, o sistema usa a **escala de EXEMPLO** de `convex/lib/escala.ts` (6 perguntas, pontos de corte de exemplo). Ela **não é validada** e aparece marcada como exemplo no site. Para trocar pela escala escolhida pelas psicólogas:
+
+```bash
+npx convex run triagem:publicarEscala '{"escala":{"versao":"1","nome":"Nome da escala","exemplo":false,"perguntas":[{"id":"tristeza","texto":"...","opcoes":[{"id":"nada","titulo":"Nada","pontos":0,"risco":false}]}],"faixas":{"altaAPartirDe":7,"moderadaAPartirDe":4}}}'
+```
+
+Os check-ins antigos guardam o texto das perguntas e respostas como foram mostrados, então continuam legíveis depois da troca.
+
+Para mandar um check-in na hora (teste): `npx convex run triagem:enviarCheckinAgora '{"telefone":"5511999998888"}'`.
+
 **Quem vê o quê:** cada hospital (organização) vê só as próprias pacientes, conversas, alertas e pedidos (`listarPacientes`, `listarMensagens`, `listarAlertasDeCrise`, `listarPedidosDeExclusao`). Uma paciente ainda sem hospital não aparece para ninguém.
 
 ### Configurar (até existirem telas para isso)

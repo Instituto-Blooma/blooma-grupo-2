@@ -40,6 +40,7 @@ import {
   registrarMensagemEnviada,
   type RemetenteSaida,
 } from './pacientes';
+import { registrarQueRoboNaoEntendeu } from './triagem';
 import { mensagemSaidaValidator, opcaoMenuValidator, perguntaValidator } from './schema';
 
 // ---------------------------------------------------------------------------
@@ -366,7 +367,7 @@ async function tratarRespostaErrada(
 /**
  * The bot gives up on a question (3 wrong answers in a row): tells the patient a person will
  * take over and sends the guide on how to use the service again (when CANAL_CARTILHA_URL is set).
- * The team queue will plug in here to mark the conversation for a person; for now it is logged.
+ * The case then goes to the team queue (convex/triagem.ts).
  */
 async function encaminharParaEquipe(ctx: MutationCtx, telefone: string) {
   const { cartilhaUrl, cartilhaNome } = configuracao();
@@ -388,6 +389,8 @@ async function encaminharParaEquipe(ctx: MutationCtx, telefone: string) {
     }
   }
   await agendarEmSequenciaDoRobo(ctx, telefone, mensagens);
+  // The case goes to the team queue with the alert "o robô não entendeu".
+  await registrarQueRoboNaoEntendeu(ctx, telefone);
   logarSimulado('[canal] conversa precisa da equipe', { telefone });
 }
 
