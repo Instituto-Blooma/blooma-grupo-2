@@ -116,7 +116,7 @@ function Balao({ mensagem, nomeDaPaciente }: { mensagem: Mensagem; nomeDaPacient
         className={cn(
           'max-w-[85%] rounded-lg px-3 py-2 text-sm shadow-sm',
           daPaciente
-            ? 'border border-marca-borda bg-white text-marca-marinho'
+            ? 'border border-marca-borda bg-marca-creme text-marca-marinho'
             : mensagem.remetente === 'robo'
               ? 'bg-marca-azul-claro text-marca-marinho'
               : 'bg-marca-menta-claro text-marca-marinho'

@@ -43,7 +43,7 @@ export function LinhasPacientes({
   }
   return (
     <div className="space-y-3">
-      <ul className="divide-y rounded-lg border">
+      <ul className="divide-y overflow-hidden rounded-xl border bg-card shadow-[0_1px_3px_rgba(27,71,101,0.08)]">
         {linhas.map((linha, indice) => (
           <li key={linha._id}>
             <Link

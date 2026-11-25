@@ -247,7 +247,7 @@ function Avisos({ hospital, naoVistos }: { hospital: Hospital; naoVistos: Contag
               <li
                 key={aviso._id}
                 className={cn(
-                  'space-y-2 rounded-lg border border-marca-menta-base bg-white p-3 text-sm text-marca-marinho dark:border-border dark:bg-background dark:text-foreground',
+                  'space-y-2 rounded-lg border border-marca-menta-base bg-marca-creme p-3 text-sm text-marca-marinho dark:border-border dark:bg-background dark:text-foreground',
                   verVistos && 'opacity-80'
                 )}
               >
