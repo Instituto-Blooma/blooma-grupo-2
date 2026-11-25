@@ -127,11 +127,11 @@ function AlertasDaFila({
         <button
           type="button"
           onClick={() => aoEscolher('risco')}
-          className="flex items-start gap-3 rounded-lg border border-red-300 bg-red-50 p-4 text-left text-red-900 hover:bg-red-100 dark:bg-red-950 dark:text-red-100"
+          className="flex items-start gap-3 rounded-lg border-2 border-marca-laranja-base bg-marca-laranja-claro p-4 text-left text-marca-titulo hover:border-marca-laranja-escuro focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
           <span>
-            <span className="block font-semibold">
+            <span className="block font-subtitulo text-lg font-semibold">
               {numero(resumo.risco)}{' '}
               {resumo.risco.total === 1
                 ? 'paciente com sinal de risco'
@@ -148,11 +148,11 @@ function AlertasDaFila({
         <button
           type="button"
           onClick={() => aoEscolher('nao_entendeu')}
-          className="flex items-start gap-3 rounded-lg border border-slate-300 bg-slate-50 p-4 text-left text-slate-900 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-100"
+          className="flex items-start gap-3 rounded-lg border-2 border-marca-azul-base bg-marca-azul-claro p-4 text-left text-marca-titulo hover:border-marca-azul-escuro focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <HelpCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
           <span>
-            <span className="block font-semibold">
+            <span className="block font-subtitulo text-lg font-semibold">
               {numero(resumo.naoEntendeu)}{' '}
               {resumo.naoEntendeu.total === 1
                 ? 'paciente que o robô não entendeu'
@@ -189,13 +189,13 @@ function Avisos({ hospital, naoVistos }: { hospital: Hospital; naoVistos: Contag
   };
 
   return (
-    <Card className="h-fit">
+    <Card className="h-fit border-marca-menta-base bg-marca-menta-claro text-marca-marinho dark:border-border dark:bg-card dark:text-card-foreground">
       <CardHeader className="space-y-1.5">
         <CardTitle className="flex items-center gap-2 text-lg">
           <Bell className="h-4 w-4" aria-hidden />
           Avisos
           {naoVistos && naoVistos.total > 0 ? (
-            <span className="rounded-full bg-primary px-2 py-0.5 text-xs text-primary-foreground">
+            <span className="rounded-full bg-marca-menta-escuro px-2 py-0.5 font-sans text-xs text-white">
               {numero(naoVistos)}
             </span>
           ) : null}
@@ -245,7 +245,10 @@ function Avisos({ hospital, naoVistos }: { hospital: Hospital; naoVistos: Contag
             {results.map((aviso) => (
               <li
                 key={aviso._id}
-                className={cn('space-y-2 rounded-lg border p-3 text-sm', verVistos && 'opacity-80')}
+                className={cn(
+                  'space-y-2 rounded-lg border border-marca-menta-base bg-white p-3 text-sm text-marca-marinho dark:border-border dark:bg-background dark:text-foreground',
+                  verVistos && 'opacity-80'
+                )}
               >
                 <p>
                   <span className="font-semibold">{nomeDaPaciente(aviso)}</span> concluiu o check-in

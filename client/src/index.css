@@ -10,42 +10,44 @@
   --elevate-1: rgba(0, 0, 0, 0.03);
   --elevate-2: rgba(0, 0, 0, 0.08);
   /* Instituto Blooma — from institutoblooma.org.br */
-  --background: 35 100% 98%;
-  --foreground: 226 77% 16%;
-  --border: 35 22% 88%;
+  --titulo: 205 69% 13%;
+  --font-subtitulo: 'Lora', Georgia, serif;
+  --background: 43 100% 95%;
+  --foreground: 204 58% 25%;
+  --border: 45 28% 84%;
   --card: 0 0% 100%;
-  --card-foreground: 226 77% 16%;
-  --card-border: 35 20% 90%;
-  --sidebar: 35 45% 96%;
-  --sidebar-foreground: 226 77% 16%;
-  --sidebar-border: 35 22% 88%;
-  --sidebar-primary: 239 98% 42%;
+  --card-foreground: 204 58% 25%;
+  --card-border: 45 28% 84%;
+  --sidebar: 240 100% 95%;
+  --sidebar-foreground: 204 58% 25%;
+  --sidebar-border: 45 28% 84%;
+  --sidebar-primary: 205 55% 38%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 50 100% 90%;
-  --sidebar-accent-foreground: 226 77% 16%;
-  --sidebar-ring: 239 98% 42%;
+  --sidebar-accent: 240 100% 93%;
+  --sidebar-accent-foreground: 204 58% 25%;
+  --sidebar-ring: 205 55% 38%;
   --popover: 0 0% 100%;
-  --popover-foreground: 226 77% 16%;
-  --popover-border: 35 20% 90%;
-  --primary: 239 98% 42%;
+  --popover-foreground: 204 58% 25%;
+  --popover-border: 45 28% 84%;
+  --primary: 205 55% 38%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 269 61% 92%;
-  --secondary-foreground: 226 77% 16%;
-  --muted: 35 28% 93%;
-  --muted-foreground: 226 22% 40%;
-  --accent: 50 100% 88%;
-  --accent-foreground: 226 77% 16%;
-  --destructive: 343 48% 40%;
+  --secondary: 240 100% 93%;
+  --secondary-foreground: 204 58% 25%;
+  --muted: 240 100% 95%;
+  --muted-foreground: 210 24% 38%;
+  --accent: 204 77% 95%;
+  --accent-foreground: 204 58% 25%;
+  --destructive: 22 70% 40%;
   --destructive-foreground: 0 0% 100%;
-  --input: 226 16% 68%;
-  --ring: 239 98% 42%;
-  --chart-1: 239 98% 42%;
-  --chart-2: 50 100% 52%;
-  --chart-3: 130 40% 42%;
-  --chart-4: 262 25% 44%;
-  --chart-5: 191 50% 42%;
-  --font-sans: 'Open Sans', sans-serif;
-  --font-serif: 'Source Serif 4', Georgia, serif;
+  --input: 45 18% 70%;
+  --ring: 205 55% 38%;
+  --chart-1: 206 79% 66%;
+  --chart-2: 240 100% 93%;
+  --chart-3: 22 100% 69%;
+  --chart-4: 143 59% 87%;
+  --chart-5: 205 55% 38%;
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --font-serif: 'Gloock', Georgia, serif;
   --font-mono: 'IBM Plex Mono', Menlo, monospace;
   --radius: 0.875rem;
   --shadow-2xs: 0px 2px 0px 0px hsl(0 0% 0% / 0);
@@ -108,35 +110,36 @@
   --opaque-button-border-intensity: 9;
   --elevate-1: rgba(255, 255, 255, 0.04);
   --elevate-2: rgba(255, 255, 255, 0.09);
-  --background: 226 45% 8%;
-  --foreground: 35 40% 96%;
-  --border: 226 20% 18%;
-  --card: 226 38% 11%;
-  --card-foreground: 35 40% 96%;
-  --card-border: 226 20% 16%;
-  --sidebar: 226 40% 10%;
-  --sidebar-foreground: 35 40% 96%;
-  --sidebar-border: 226 20% 16%;
-  --sidebar-primary: 50 100% 70%;
-  --sidebar-primary-foreground: 226 77% 12%;
-  --sidebar-accent: 226 25% 16%;
-  --sidebar-accent-foreground: 35 40% 96%;
-  --sidebar-ring: 50 100% 70%;
-  --popover: 226 32% 13%;
-  --popover-foreground: 35 40% 96%;
-  --popover-border: 226 20% 18%;
-  --primary: 239 86% 68%;
-  --primary-foreground: 226 60% 10%;
-  --secondary: 262 20% 22%;
-  --secondary-foreground: 35 40% 96%;
-  --muted: 226 20% 16%;
-  --muted-foreground: 35 16% 72%;
-  --accent: 50 40% 18%;
-  --accent-foreground: 50 100% 78%;
-  --destructive: 343 55% 55%;
-  --destructive-foreground: 0 0% 100%;
-  --input: 226 15% 32%;
-  --ring: 239 86% 68%;
+  --titulo: 43 100% 97%;
+  --background: 205 69% 9%;
+  --foreground: 43 100% 95%;
+  --border: 205 35% 22%;
+  --card: 205 60% 13%;
+  --card-foreground: 43 100% 95%;
+  --card-border: 205 35% 20%;
+  --sidebar: 205 60% 12%;
+  --sidebar-foreground: 43 100% 95%;
+  --sidebar-border: 205 35% 20%;
+  --sidebar-primary: 206 79% 66%;
+  --sidebar-primary-foreground: 205 69% 13%;
+  --sidebar-accent: 240 45% 30%;
+  --sidebar-accent-foreground: 43 100% 95%;
+  --sidebar-ring: 206 79% 66%;
+  --popover: 205 60% 14%;
+  --popover-foreground: 43 100% 95%;
+  --popover-border: 205 35% 22%;
+  --primary: 206 79% 66%;
+  --primary-foreground: 205 69% 13%;
+  --secondary: 240 45% 32%;
+  --secondary-foreground: 43 100% 95%;
+  --muted: 205 40% 17%;
+  --muted-foreground: 45 28% 80%;
+  --accent: 205 40% 22%;
+  --accent-foreground: 43 100% 95%;
+  --destructive: 22 100% 69%;
+  --destructive-foreground: 205 69% 13%;
+  --input: 205 30% 32%;
+  --ring: 206 79% 66%;
   --chart-1: 239 86% 70%;
   --chart-2: 50 100% 70%;
   --chart-3: 130 45% 58%;
@@ -203,11 +206,23 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 
-  h1,
+  /* Grupo 2: Gloock for page titles, Lora for subtitles, DM Sans for text. */
+  h1 {
+    font-family: var(--font-serif);
+    color: hsl(var(--titulo));
+    letter-spacing: -0.01em;
+  }
+
   h2,
   h3 {
-    font-family: var(--font-serif);
-    letter-spacing: -0.025em;
+    font-family: var(--font-subtitulo);
+    letter-spacing: -0.01em;
+  }
+
+  /* Gloock has a single weight: never draw a fake bold. */
+  .font-serif {
+    font-weight: 400;
+    font-synthesis: none;
   }
 }
 

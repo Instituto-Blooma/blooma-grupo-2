@@ -86,7 +86,7 @@ export function LinhasPacientes({
                     <span>Cadastro incompleto</span>
                   ) : null}
                   {linha.exclusaoPedida ? (
-                    <span className="font-medium text-red-700 dark:text-red-300">
+                    <span className="font-medium text-marca-laranja-escuro dark:text-marca-laranja-base">
                       Pediu para apagar os dados
                     </span>
                   ) : null}

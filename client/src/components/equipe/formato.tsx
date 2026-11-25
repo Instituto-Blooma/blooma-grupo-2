@@ -7,10 +7,22 @@ export type SituacaoCaso = 'aguardando' | 'em_atendimento' | 'concluido';
 export type TipoAlerta = 'resposta_de_risco' | 'palavra_de_risco' | 'robo_nao_entendeu';
 
 const PRIORIDADES: Record<Prioridade, { rotulo: string; classe: string }> = {
-  urgente: { rotulo: 'Urgente', classe: 'bg-red-600 text-white border-red-700' },
-  alta: { rotulo: 'Alta', classe: 'bg-orange-100 text-orange-900 border-orange-300' },
-  moderada: { rotulo: 'Moderada', classe: 'bg-amber-50 text-amber-900 border-amber-300' },
-  baixa: { rotulo: 'Baixa', classe: 'bg-emerald-50 text-emerald-900 border-emerald-300' },
+  urgente: {
+    rotulo: 'Urgente',
+    classe: 'bg-marca-laranja-escuro text-white border-marca-laranja-escuro',
+  },
+  alta: {
+    rotulo: 'Alta',
+    classe: 'bg-marca-laranja-base text-marca-titulo border-marca-laranja-base',
+  },
+  moderada: {
+    rotulo: 'Moderada',
+    classe: 'bg-marca-lavanda-base text-marca-marinho border-marca-lavanda-base',
+  },
+  baixa: {
+    rotulo: 'Baixa',
+    classe: 'bg-marca-menta-base text-marca-marinho border-marca-menta-base',
+  },
 };
 
 export const ROTULO_PRIORIDADE: Record<Prioridade, string> = {
@@ -23,7 +35,10 @@ export const ROTULO_PRIORIDADE: Record<Prioridade, string> = {
 export function SeloPrioridade({ prioridade }: { prioridade: Prioridade | null }) {
   const dados = prioridade
     ? PRIORIDADES[prioridade]
-    : { rotulo: 'Sem pontuação', classe: 'bg-muted text-muted-foreground border-border' };
+    : {
+        rotulo: 'Sem pontuação',
+        classe: 'bg-marca-borda text-marca-secundario border-marca-borda',
+      };
   return (
     <span
       className={cn(
@@ -61,8 +76,8 @@ export function categoriaDoAlerta(tipo: TipoAlerta): CategoriaAlerta {
 }
 
 export const CLASSE_CATEGORIA: Record<CategoriaAlerta, string> = {
-  risco: 'border-red-300 bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-200',
-  nao_entendeu: 'border-slate-300 bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200',
+  risco: 'border-marca-laranja-base bg-marca-laranja-claro text-marca-laranja-escuro',
+  nao_entendeu: 'border-marca-azul-base bg-marca-azul-claro text-marca-azul-escuro',
 };
 
 /** With `tipo`, shows the detail ("Resposta de risco no check-in"); else the category name. */

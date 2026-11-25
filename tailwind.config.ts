@@ -82,6 +82,18 @@ export default {
           foreground: 'hsl(var(--sidebar-accent-foreground) / <alpha-value>)',
           border: 'var(--sidebar-accent-border)',
         },
+        // Grupo 2 palette (claro = fundo, base = identidade, escuro = texto/botão).
+        marca: {
+          azul: { claro: '#E8F4FC', base: '#64B4ED', escuro: '#2C6A96' },
+          lavanda: { claro: '#E5E5FF', base: '#D9D9FF', escuro: '#3F3FA6' },
+          laranja: { claro: '#FFEFE5', base: '#FF9C62', escuro: '#AD531F' },
+          menta: { claro: '#EBF9F1', base: '#C9F0D8', escuro: '#32764C' },
+          creme: '#FFF8E7',
+          borda: '#E2DCCB',
+          secundario: '#4A6178',
+          marinho: '#1B4765',
+          titulo: '#0A2436',
+        },
         status: {
           online: 'rgb(34 197 94)',
           away: 'rgb(245 158 11)',
@@ -92,6 +104,7 @@ export default {
       fontFamily: {
         sans: ['var(--font-sans)'],
         serif: ['var(--font-serif)'],
+        subtitulo: ['var(--font-subtitulo)'],
         mono: ['var(--font-mono)'],
       },
       keyframes: {

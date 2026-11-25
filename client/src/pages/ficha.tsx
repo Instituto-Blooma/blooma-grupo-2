@@ -170,7 +170,7 @@ function PedidoDeExclusao({ ficha, pacienteId }: { ficha: Ficha; pacienteId: Id<
     }
   };
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-900 dark:bg-red-950 dark:text-red-100">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border-2 border-marca-laranja-base bg-marca-laranja-claro p-4 text-sm text-marca-titulo">
       <p>Ela pediu pelo WhatsApp para apagar os dados.</p>
       <Button variant="destructive" size="sm" onClick={confirmar}>
         Apagar os dados dela
@@ -200,7 +200,7 @@ function AlertasCard({ ficha }: { ficha: Ficha }) {
       </CardHeader>
       <CardContent className="space-y-5">
         <section className="space-y-2">
-          <h3 className="flex items-center gap-2 text-sm font-semibold text-red-800 dark:text-red-200">
+          <h3 className="flex items-center gap-2 text-base font-semibold text-marca-laranja-escuro dark:text-marca-laranja-base">
             <AlertTriangle className="h-4 w-4" aria-hidden />
             Sinais de risco
           </h3>
@@ -218,7 +218,7 @@ function AlertasCard({ ficha }: { ficha: Ficha }) {
           )}
         </section>
         <section className="space-y-2">
-          <h3 className="flex items-center gap-2 text-sm font-semibold">
+          <h3 className="flex items-center gap-2 text-base font-semibold text-marca-azul-escuro dark:text-marca-azul-base">
             <HelpCircle className="h-4 w-4" aria-hidden />
             Respostas que o robô não entendeu
           </h3>
@@ -331,7 +331,7 @@ function CheckinItem({ checkin }: { checkin: Checkin }) {
         </div>
       </div>
       {checkin.escalaExemplo ? (
-        <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+        <p className="rounded-md bg-marca-lavanda-claro px-3 py-2 text-xs text-marca-lavanda-escuro">
           Escala de EXEMPLO, ainda não validada pela equipe de psicologia. Use a pontuação só como
           teste.
         </p>
@@ -345,7 +345,7 @@ function CheckinItem({ checkin }: { checkin: Checkin }) {
               key={resposta.perguntaId}
               className={cn(
                 'flex items-start justify-between gap-3 rounded-md px-2 py-1',
-                resposta.risco && 'bg-red-50 dark:bg-red-950'
+                resposta.risco && 'bg-marca-laranja-claro text-marca-marinho'
               )}
             >
               <span>
@@ -354,7 +354,7 @@ function CheckinItem({ checkin }: { checkin: Checkin }) {
                 <br />
                 <span className="font-medium">{resposta.opcaoTitulo}</span>
                 {resposta.risco ? (
-                  <span className="ml-2 text-xs font-semibold text-red-700 dark:text-red-300">
+                  <span className="ml-2 text-xs font-semibold text-marca-laranja-escuro">
                     resposta de risco
                   </span>
                 ) : null}

@@ -148,4 +148,8 @@ Defina no Convex (`npx convex env set NOME valor`):
 | `CANAL_CARTILHA_NOME`          | Opcional. Nome do arquivo da cartilha (padrão `cartilha.pdf`).                  |
 | `CANAL_TOLERAR_ERRO_DIGITACAO` | Opcional. `true` aceita um erro pequeno de digitação no nome da opção.          |
 
-No painel da Meta, a URL do webhook é `<CONVEX_SITE_URL>/whatsapp/webhook`, com assinatura do campo `messages`. Também é preciso pedir a aprovação do modelo de aviso (por exemplo: "Você tem uma nova mensagem da equipe. Responda aqui para ver.").
+No painel da Meta, a URL do webhook é `<CONVEX_SITE_URL>/whatsapp/webhook`, com assinatura do campo `messages`. Também é preciso pedir a aprovação do modelo de aviso `nova_mensagem_equipe` (categoria "Utilidade", idioma português do Brasil) com **exatamente** este texto, que é o mesmo de `TEXTO_MODELO_AVISO` em `convex/canal.ts`:
+
+> Oi, tudo bem? Você tem uma nova mensagem da equipe! Por favor, escreva uma mensagem para te enviarmos a resposta da equipe.
+
+O WhatsApp envia o texto cadastrado na Meta; o do código só aparece no histórico da conversa no site. Se mudar um, mude o outro.

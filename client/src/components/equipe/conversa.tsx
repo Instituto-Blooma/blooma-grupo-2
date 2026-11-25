@@ -94,15 +94,15 @@ function Balao({ mensagem, nomeDaPaciente }: { mensagem: Mensagem; nomeDaPacient
         className={cn(
           'max-w-[85%] rounded-lg px-3 py-2 text-sm shadow-sm',
           daPaciente
-            ? 'bg-background'
+            ? 'border border-marca-borda bg-white text-marca-marinho'
             : mensagem.remetente === 'robo'
-              ? 'bg-slate-100 dark:bg-slate-800'
-              : 'bg-emerald-100 dark:bg-emerald-900'
+              ? 'bg-marca-azul-claro text-marca-marinho'
+              : 'bg-marca-menta-claro text-marca-marinho'
         )}
       >
-        <p className="mb-0.5 text-xs font-semibold text-muted-foreground">{autor}</p>
+        <p className="mb-0.5 text-xs font-semibold text-marca-secundario">{autor}</p>
         <p className="whitespace-pre-wrap break-words">{corpo}</p>
-        <p className="mt-1 text-right text-[11px] text-muted-foreground">
+        <p className="mt-1 text-right text-[11px] text-marca-secundario">
           {dataHora(mensagem.enviadaEm)}
         </p>
       </div>

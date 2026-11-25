@@ -85,6 +85,13 @@ const MENSAGEM_NAO_ENTENDI =
   'Não entendi sua resposta. Responda com o número ou o nome de uma das opções.';
 const MENSAGEM_EQUIPE_VAI_AJUDAR =
   'Não consegui entender suas respostas. Alguém da equipe vai continuar a conversa com você por aqui.';
+/**
+ * Text of the approved notice template (WHATSAPP_TEMPLATE_AVISO), sent when the 24h window is
+ * closed. WhatsApp sends the text registered at Meta, so the template there must have exactly
+ * this text; here it is only written to the conversation history.
+ */
+export const TEXTO_MODELO_AVISO =
+  'Oi, tudo bem? Você tem uma nova mensagem da equipe! Por favor, escreva uma mensagem para te enviarmos a resposta da equipe.';
 
 const LIMITES = {
   texto: 4096,
@@ -673,6 +680,8 @@ async function enviarOuGuardar(
     .first();
   await ctx.db.insert('canalMensagensPendentes', { telefone, mensagem, criadaEm: agora });
   if (!jaAvisada) {
+    // Kept in the history too, so the team sees that she was notified.
+    await registrarMensagemEnviada(ctx, telefone, TEXTO_MODELO_AVISO, { tipo: 'robo' });
     await ctx.scheduler.runAfter(0, internal.canal.entregarAviso, { telefone });
   }
   return { situacao: 'aguardando_paciente' };
