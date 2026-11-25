@@ -30,6 +30,7 @@ const MAX_NOME_PERFIL = 60;
 const MAX_FUNCAO_PERFIL = 40;
 const MAX_CONTAGEM = 100;
 const MAX_AVISOS_POR_VEZ = 200;
+const MAX_PALAVRAS_MOSTRADAS = 100;
 
 // ---------------------------------------------------------------------------
 // Professional profile (name and role shown to patients)
@@ -545,5 +546,49 @@ export const enviarMensagem = mutation({
       }
     );
     return resultado;
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Settings page (read-only data the team should know about)
+// ---------------------------------------------------------------------------
+
+/** Hospital code for WhatsApp, current scale and consent term, number of risk words. */
+export const configuracoes = query({
+  args: { organizationId: v.string() },
+  handler: async (ctx, args) => {
+    await requireMembroDoHospital(ctx, args.organizationId);
+    const [hospital, escala, termo, palavras] = await Promise.all([
+      ctx.db
+        .query('hospitais')
+        .withIndex('by_organizationId', (q) => q.eq('organizationId', args.organizationId))
+        .unique(),
+      ctx.db.query('escalasTriagem').withIndex('by_publicadaEm').order('desc').first(),
+      ctx.db.query('termosConsentimento').withIndex('by_publicadoEm').order('desc').first(),
+      ctx.db.query('palavrasDeRisco').take(MAX_PALAVRAS_MOSTRADAS + 1),
+    ]);
+    return {
+      codigoWhatsApp: hospital?.codigo ?? null,
+      escala: escala
+        ? {
+            nome: escala.nome,
+            versao: escala.versao,
+            exemplo: escala.exemplo,
+            perguntas: escala.perguntas.length,
+            pontuacaoMaxima: escala.perguntas.reduce(
+              (total, pergunta) =>
+                total + Math.max(...pergunta.opcoes.map((opcao) => opcao.pontos)),
+              0
+            ),
+            faixas: escala.faixas,
+            publicadaEm: escala.publicadaEm,
+          }
+        : null,
+      termo: termo ? { versao: termo.versao, publicadoEm: termo.publicadoEm } : null,
+      palavrasDeRisco: {
+        total: Math.min(palavras.length, MAX_PALAVRAS_MOSTRADAS),
+        mais: palavras.length > MAX_PALAVRAS_MOSTRADAS,
+      },
+    };
   },
 });

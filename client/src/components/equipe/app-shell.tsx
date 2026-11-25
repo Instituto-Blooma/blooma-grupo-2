@@ -1,9 +1,23 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link } from '@tanstack/react-router';
 import { useAuthActions } from '@convex-dev/auth/react';
 import { usePermission, useTenantsData } from '@djpanda/convex-tenants/react';
 import { useConvexAuth, useQuery } from 'convex/react';
-import { LogOut, User } from 'lucide-react';
+import {
+  Bell,
+  CircleHelp,
+  CircleUserRound,
+  ListOrdered,
+  LogOut,
+  Menu,
+  Settings,
+  ShieldCheck,
+  Siren,
+  Users,
+  UsersRound,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
 import { Creditos, OlharHumanoLogo } from '@/components/olhar-humano-marca';
@@ -12,25 +26,27 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { api } from '../../../../convex/_generated/api';
 import { PerfilForm } from './perfil-form';
 
 export type Hospital = { organizationId: string; nome: string };
 
-type Secao = 'fila' | 'pacientes' | 'perfil' | 'equipe';
+export type Secao =
+  | 'fila'
+  | 'urgentes'
+  | 'nao_entendeu'
+  | 'avisos'
+  | 'pacientes'
+  | 'equipe'
+  | 'configuracoes'
+  | 'perfil';
+
+type Usuario = { name?: string | null; email?: string | null; image?: string | null } | null;
 
 /**
- * Header, navigation and the checks every team page needs: signed in, member of a hospital and
- * with a profile (name and role). Only then the page itself is shown.
+ * Side panel, and the checks every team page needs: signed in, member of a hospital and with a
+ * profile (name and role). Only then the page itself is shown.
  */
 export function AppShell({
   secao,
@@ -51,10 +67,11 @@ export function AppShell({
   );
   const perfil = useQuery(api.equipe.meuPerfil, isAuthenticated ? {} : 'skip');
   const { currentOrganization, isOrganizationsLoading } = useTenantsData();
+  const [menuAberto, setMenuAberto] = useState(false);
 
   let conteudo: ReactNode;
   if (usuario === undefined || isOrganizationsLoading || perfil === undefined) {
-    conteudo = <Aviso>Carregando...</Aviso>;
+    conteudo = <p className="py-16 text-center text-muted-foreground">Carregando...</p>;
   } else if (!currentOrganization) {
     conteudo = ehAdminDaPlataforma ? (
       <Recado titulo="Administração da plataforma">
@@ -67,7 +84,7 @@ export function AppShell({
     ) : (
       <Recado titulo="Aguardando convite" data-testid="waiting-for-invitation">
         {statusConvite?.status === 'invited'
-          ? 'Seu convite está pronto. Entre com o Google usando o e-mail que recebeu o convite.'
+          ? 'Seu convite está pronto. Entre com o e-mail que recebeu o convite.'
           : 'Você ainda não faz parte da equipe de nenhum hospital. Peça um convite à pessoa responsável pela equipe e entre de novo com o mesmo e-mail.'}
       </Recado>
     );
@@ -94,36 +111,77 @@ export function AppShell({
     });
   }
 
+  const comMenu = Boolean(currentOrganization) && Boolean(perfil);
+
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="flex min-h-screen flex-col bg-background">
       <ImpersonationBanner />
-      <Cabecalho
-        secao={secao}
-        usuario={usuario ?? null}
-        organizationId={currentOrganization?._id}
-        ehAdminDaPlataforma={Boolean(ehAdminDaPlataforma)}
-        temPerfil={Boolean(perfil)}
-      />
-      <main className="container flex-1 px-4 py-6 md:px-6 md:py-10">{conteudo}</main>
-      <footer className="border-t py-5">
-        <Creditos className="container px-4 md:px-6" />
-      </footer>
+      <div className="flex flex-1">
+        {/* Side panel: fixed on large screens, a drawer on phones. */}
+        <aside
+          className={cn(
+            'fixed inset-y-0 left-0 z-50 w-72 border-r bg-background transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0',
+            menuAberto ? 'translate-x-0 shadow-xl' : '-translate-x-full'
+          )}
+          aria-label="Menu principal"
+        >
+          <PainelLateral
+            secao={secao}
+            usuario={usuario ?? null}
+            organizationId={comMenu ? currentOrganization?._id : undefined}
+            ehAdminDaPlataforma={Boolean(ehAdminDaPlataforma)}
+            aoNavegar={() => setMenuAberto(false)}
+            aoFechar={() => setMenuAberto(false)}
+          />
+        </aside>
+        {menuAberto ? (
+          <button
+            type="button"
+            aria-label="Fechar o menu"
+            className="fixed inset-0 z-40 bg-marca-titulo/30 lg:hidden"
+            onClick={() => setMenuAberto(false)}
+          />
+        ) : null}
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* Top bar only on phones and tablets. */}
+          <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/95 px-4 backdrop-blur lg:hidden">
+            <Link to="/" aria-label="Olhar Humano: ir para a fila">
+              <OlharHumanoLogo />
+            </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Abrir o menu"
+              onClick={() => setMenuAberto(true)}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+          </div>
+          <main className="w-full max-w-6xl flex-1 px-4 py-6 md:px-8 md:py-10">{conteudo}</main>
+          <footer className="border-t py-5">
+            <Creditos className="px-4" />
+          </footer>
+        </div>
+      </div>
     </div>
   );
 }
 
-function Cabecalho({
+function PainelLateral({
   secao,
   usuario,
   organizationId,
   ehAdminDaPlataforma,
-  temPerfil,
+  aoNavegar,
+  aoFechar,
 }: {
   secao?: Secao;
-  usuario: { name?: string | null; email?: string | null; image?: string | null } | null;
+  usuario: Usuario;
   organizationId: string | undefined;
   ehAdminDaPlataforma: boolean;
-  temPerfil: boolean;
+  aoNavegar: () => void;
+  aoFechar: () => void;
 }) {
   const { signOut } = useAuthActions();
   const podeGerenciar = usePermission({
@@ -131,6 +189,7 @@ function Cabecalho({
     permission: 'settings:manage',
     checkPermissionQuery: api.tenants.checkPermission,
   });
+  const resumo = useQuery(api.equipe.resumoDaFila, organizationId ? { organizationId } : 'skip');
   const nome = usuario?.name ?? 'Usuária';
 
   const sair = async () => {
@@ -142,110 +201,198 @@ function Cabecalho({
     }
   };
 
-  const mostrarNavegacao = Boolean(organizationId) && temPerfil;
-
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex min-h-14 flex-wrap items-center justify-between gap-2 px-4 py-2 md:px-6">
-        <div className="flex items-center gap-3">
-          <Link to="/" aria-label="Olhar Humano: ir para a fila">
-            <OlharHumanoLogo />
-          </Link>
-          {organizationId ? <span className="h-6 w-px bg-border" aria-hidden /> : null}
-          <OrganizationContextControl isPlatformAdmin={ehAdminDaPlataforma} />
-        </div>
-        <nav className="flex flex-wrap items-center gap-1">
-          {mostrarNavegacao ? (
-            <>
-              <ItemMenu para="/" ativo={secao === 'fila'}>
+    <div className="flex h-full flex-col">
+      <div className="flex items-center justify-between gap-2 px-5 pt-5">
+        <Link to="/" onClick={aoNavegar} aria-label="Olhar Humano: ir para a fila">
+          <OlharHumanoLogo />
+        </Link>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="lg:hidden"
+          aria-label="Fechar o menu"
+          onClick={aoFechar}
+        >
+          <X className="h-5 w-5" />
+        </Button>
+      </div>
+      <div className="px-5 pb-4 pt-2">
+        <OrganizationContextControl isPlatformAdmin={ehAdminDaPlataforma} />
+      </div>
+
+      <nav className="flex-1 space-y-6 overflow-y-auto px-3 pb-4">
+        {organizationId ? (
+          <>
+            <Grupo titulo="Atendimento">
+              <Item para="/" icone={ListOrdered} ativo={secao === 'fila'} aoNavegar={aoNavegar}>
                 Fila
-              </ItemMenu>
-              <ItemMenu para="/pacientes" ativo={secao === 'pacientes'}>
+              </Item>
+              <Item
+                para="/"
+                busca={{ filtro: 'risco' }}
+                icone={Siren}
+                ativo={secao === 'urgentes'}
+                aoNavegar={aoNavegar}
+                contagem={resumo?.risco.total}
+                tom="risco"
+              >
+                Sinal de risco
+              </Item>
+              <Item
+                para="/"
+                busca={{ filtro: 'nao_entendeu' }}
+                icone={CircleHelp}
+                ativo={secao === 'nao_entendeu'}
+                aoNavegar={aoNavegar}
+                contagem={resumo?.naoEntendeu.total}
+                tom="robo"
+              >
+                Robô não entendeu
+              </Item>
+              <Item
+                para="/avisos"
+                icone={Bell}
+                ativo={secao === 'avisos'}
+                aoNavegar={aoNavegar}
+                contagem={resumo?.avisosNaoVistos.total}
+                tom="aviso"
+              >
+                Avisos
+              </Item>
+              <Item
+                para="/pacientes"
+                icone={Users}
+                ativo={secao === 'pacientes'}
+                aoNavegar={aoNavegar}
+              >
                 Pacientes
-              </ItemMenu>
-            </>
-          ) : null}
-          {podeGerenciar.allowed ? (
-            <ItemMenu para="/settings/members" ativo={secao === 'equipe'}>
-              Equipe
-            </ItemMenu>
+              </Item>
+            </Grupo>
+            <Grupo titulo="Hospital">
+              {podeGerenciar.allowed ? (
+                <Item
+                  para="/settings/members"
+                  icone={UsersRound}
+                  ativo={secao === 'equipe'}
+                  aoNavegar={aoNavegar}
+                >
+                  Equipe
+                </Item>
+              ) : null}
+              <Item
+                para="/settings/org"
+                icone={Settings}
+                ativo={secao === 'configuracoes'}
+                aoNavegar={aoNavegar}
+              >
+                Configurações
+              </Item>
+            </Grupo>
+          </>
+        ) : null}
+        <Grupo titulo="Conta">
+          {organizationId ? (
+            <Item
+              para="/perfil"
+              icone={CircleUserRound}
+              ativo={secao === 'perfil'}
+              aoNavegar={aoNavegar}
+            >
+              Meu perfil
+            </Item>
           ) : null}
           {ehAdminDaPlataforma ? (
-            <ItemMenu para="/admin" ativo={false}>
+            <Item para="/admin" icone={ShieldCheck} ativo={false} aoNavegar={aoNavegar}>
               Administração
-            </ItemMenu>
+            </Item>
           ) : null}
-          <ThemeToggle />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                className="relative h-9 w-9 rounded-full"
-                aria-label="Menu da conta"
-              >
-                <Avatar className="h-9 w-9">
-                  <AvatarImage src={usuario?.image ?? undefined} />
-                  <AvatarFallback>{nome.charAt(0).toUpperCase()}</AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="font-normal">
-                <p className="text-sm font-medium leading-none">{nome}</p>
-                <p className="mt-1 text-xs leading-none text-muted-foreground">
-                  {usuario?.email ?? ''}
-                </p>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link to="/perfil">
-                  <User className="mr-2 h-4 w-4" />
-                  Meu perfil
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={sair}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Sair
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </nav>
+          <button
+            type="button"
+            onClick={sair}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            <LogOut className="h-4 w-4" aria-hidden />
+            Sair
+          </button>
+        </Grupo>
+      </nav>
+
+      <div className="flex items-center gap-3 border-t px-5 py-4">
+        <Avatar className="h-9 w-9">
+          <AvatarImage src={usuario?.image ?? undefined} />
+          <AvatarFallback className="bg-secondary">{nome.charAt(0).toUpperCase()}</AvatarFallback>
+        </Avatar>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">{nome}</p>
+          <p className="truncate text-xs text-muted-foreground">{usuario?.email ?? ''}</p>
+        </div>
+        <ThemeToggle />
       </div>
-    </header>
+    </div>
   );
 }
 
-function ItemMenu({
+function Grupo({ titulo, children }: { titulo: string; children: ReactNode }) {
+  return (
+    <div className="space-y-1">
+      <p className="px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        {titulo}
+      </p>
+      {children}
+    </div>
+  );
+}
+
+const TONS = {
+  risco: 'bg-marca-laranja-escuro text-white',
+  robo: 'bg-marca-azul-escuro text-white',
+  aviso: 'bg-marca-menta-escuro text-white',
+} as const;
+
+function Item({
   para,
+  busca,
+  icone: Icone,
   ativo,
+  aoNavegar,
+  contagem,
+  tom,
   children,
 }: {
   para: string;
+  busca?: { filtro: 'risco' | 'nao_entendeu' };
+  icone: LucideIcon;
   ativo: boolean;
+  aoNavegar: () => void;
+  contagem?: number;
+  tom?: keyof typeof TONS;
   children: ReactNode;
 }) {
   return (
-    <Link to={para}>
-      <Button
-        variant={ativo ? 'secondary' : 'ghost'}
-        size="sm"
-        className={cn(ativo && 'font-semibold')}
-      >
-        {children}
-      </Button>
-    </Link>
-  );
-}
-
-export function Aviso({ children, ...props }: { children: ReactNode; 'data-testid'?: string }) {
-  return (
-    <div
-      className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
-      {...props}
+    <Link
+      to={para}
+      search={busca ?? {}}
+      onClick={aoNavegar}
+      aria-current={ativo ? 'page' : undefined}
+      className={cn(
+        'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+        ativo
+          ? 'bg-secondary text-secondary-foreground'
+          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+      )}
     >
-      {children}
-    </div>
+      <Icone className="h-4 w-4 shrink-0" aria-hidden />
+      <span className="flex-1">{children}</span>
+      {contagem && tom ? (
+        <span
+          className={cn('rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums', TONS[tom])}
+          aria-label={`${contagem} pendentes`}
+        >
+          {contagem}
+        </span>
+      ) : null}
+    </Link>
   );
 }
 
@@ -261,10 +408,21 @@ function Recado({
 }) {
   return (
     <Card className="mx-auto max-w-lg text-center" {...props}>
-      <CardContent className="space-y-3 pt-8 pb-8">
+      <CardContent className="space-y-3 pb-8 pt-8">
         <h1 className="font-serif text-3xl">{titulo}</h1>
         <p className="text-muted-foreground">{children}</p>
       </CardContent>
     </Card>
+  );
+}
+
+export function Aviso({ children, ...props }: { children: ReactNode; 'data-testid'?: string }) {
+  return (
+    <div
+      className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground"
+      {...props}
+    >
+      {children}
+    </div>
   );
 }

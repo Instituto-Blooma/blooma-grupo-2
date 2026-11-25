@@ -21,6 +21,7 @@ import type * as equipe from "../equipe.js";
 import type * as files from "../files.js";
 import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_codigoPorEmail from "../lib/codigoPorEmail.js";
 import type * as lib_collabAccess from "../lib/collabAccess.js";
 import type * as lib_collabIds from "../lib/collabIds.js";
 import type * as lib_escala from "../lib/escala.js";
@@ -64,6 +65,7 @@ declare const fullApi: ApiFromModules<{
   files: typeof files;
   http: typeof http;
   "lib/auth": typeof lib_auth;
+  "lib/codigoPorEmail": typeof lib_codigoPorEmail;
   "lib/collabAccess": typeof lib_collabAccess;
   "lib/collabIds": typeof lib_collabIds;
   "lib/escala": typeof lib_escala;

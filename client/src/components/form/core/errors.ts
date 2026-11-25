@@ -123,7 +123,10 @@ export function applyServerErrors<TValues extends Record<string, unknown>>(
   return payload.fields as Partial<Record<DeepKeys<TValues>, string>>;
 }
 
-export function getSubmitErrorMessage(error: unknown, fallback = 'Something went wrong'): string {
+export function getSubmitErrorMessage(
+  error: unknown,
+  fallback = 'Algo deu errado. Tente de novo.'
+): string {
   if (error instanceof ConvexError) {
     if (typeof error.data === 'string') {
       return error.data;

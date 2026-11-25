@@ -136,15 +136,19 @@ export async function createOrUpdateOAuthUser(
 ): Promise<Id<'users'>> {
   const email = args.profile.email ? normalizeEmail(args.profile.email) : null;
   if (!email) {
-    throw new ConvexError('Email is required');
+    throw new ConvexError('Escreva um e-mail válido.');
   }
 
   const gate = await assertOAuthAllowed(ctx, email);
   if (!gate.allowed) {
     if (gate.reason === 'pending_invite') {
-      throw new ConvexError('Your invitation has not been sent yet. Contact your administrator.');
+      throw new ConvexError(
+        'Seu convite ainda não foi enviado. Fale com a pessoa responsável pela equipe.'
+      );
     }
-    throw new ConvexError('No account found. Contact your administrator.');
+    throw new ConvexError(
+      'Este e-mail não tem convite. Peça um convite à pessoa responsável pela equipe.'
+    );
   }
 
   const existingUser = args.existingUserId

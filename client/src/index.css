@@ -12,11 +12,11 @@
   /* Olhar Humano — Grupo 2 palette */
   --titulo: 205 69% 13%;
   --font-subtitulo: 'Lora', Georgia, serif;
-  /* #FFF8E7 creme: page and cards (cards are told apart by border and shadow). */
-  --background: 42.5 100% 95.3%;
+  /* White page and cards (default); creme #FFF8E7 stays for small highlights. */
+  --background: 0 0% 100%;
   --foreground: 204 58% 25%;
   --border: 45 28% 84%;
-  --card: 42.5 100% 95.3%;
+  --card: 0 0% 100%;
   --card-foreground: 204 58% 25%;
   --card-border: 45 28% 84%;
   --sidebar: 240 100% 95%;
@@ -27,7 +27,7 @@
   --sidebar-accent: 240 100% 93%;
   --sidebar-accent-foreground: 204 58% 25%;
   --sidebar-ring: 205 55% 38%;
-  --popover: 42.5 100% 95.3%;
+  --popover: 0 0% 100%;
   --popover-foreground: 204 58% 25%;
   --popover-border: 45 28% 84%;
   --primary: 205 55% 38%;
