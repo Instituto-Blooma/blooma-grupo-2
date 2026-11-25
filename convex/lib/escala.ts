@@ -129,7 +129,11 @@ export function pontuacaoMaxima(escala: Pick<ConteudoEscala, 'perguntas'>) {
  * The fixed rule. Any risk answer → urgent. Otherwise the total decides, using the cut-off points
  * of the scale. No AI and no judgement here: same answers always give the same priority.
  */
-export function definirPrioridade(pontuacao: number, teveRisco: boolean, faixas: Faixas) {
+export function definirPrioridade(
+  pontuacao: number,
+  teveRisco: boolean,
+  faixas: Faixas
+): Prioridade {
   if (teveRisco) return 'urgente';
   if (faixas.urgenteAPartirDe !== undefined && pontuacao >= faixas.urgenteAPartirDe) {
     return 'urgente';

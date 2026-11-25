@@ -7,6 +7,7 @@ import {
   data,
   formatarTelefone,
   nomeDaPaciente,
+  pontos,
   ROTULO_PRIORIDADE,
   ROTULO_SITUACAO,
   SeloAlerta,
@@ -71,8 +72,8 @@ export function LinhasPacientes({
                   <span>{formatarTelefone(linha.telefone)}</span>
                   {linha.ultimaPontuacao !== null && linha.ultimoCheckinEm !== null ? (
                     <span>
-                      Último check-in: {data(linha.ultimoCheckinEm)} · {linha.ultimaPontuacao}{' '}
-                      pontos
+                      Último check-in: {data(linha.ultimoCheckinEm)} ·{' '}
+                      {pontos(linha.ultimaPontuacao)}
                       {linha.ultimaPrioridade
                         ? ` · prioridade ${ROTULO_PRIORIDADE[linha.ultimaPrioridade].toLowerCase()}`
                         : ''}

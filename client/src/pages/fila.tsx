@@ -9,6 +9,7 @@ import {
   dataHora,
   mensagemDeErro,
   nomeDaPaciente,
+  pontos,
   SeloPrioridade,
 } from '@/components/equipe/formato';
 import { LinhasPacientes } from '@/components/equipe/linhas-pacientes';
@@ -255,7 +256,7 @@ function Avisos({ hospital, naoVistos }: { hospital: Hospital; naoVistos: Contag
                   às {horaDe(aviso.concluidoEm)} do dia {data(aviso.concluidoEm)}. A classificação
                   da prioridade é <SeloPrioridade prioridade="baixa" />
                   {aviso.pontuacao !== null && aviso.pontuacaoMaxima !== null
-                    ? ` (${aviso.pontuacao} de ${aviso.pontuacaoMaxima} pontos).`
+                    ? ` (${aviso.pontuacao} de ${pontos(aviso.pontuacaoMaxima)}).`
                     : '.'}
                 </p>
                 {aviso.vistoPor && aviso.vistoEm ? (

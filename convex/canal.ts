@@ -745,11 +745,12 @@ function textoParaHistorico(mensagem: MensagemSaida): string {
     case 'texto':
       return mensagem.texto;
     case 'botoes':
-    case 'lista':
-      return [
-        mensagem.texto,
-        ...mensagem.opcoes.map((opcao, indice) => `${indice + 1}. ${opcao.titulo}`),
-      ].join('\n');
+    case 'lista': {
+      const numeradas = mensagem.opcoes.map((opcao, indice) => `${indice + 1}. ${opcao.titulo}`);
+      // The check-in questions already list the numbered options in the text.
+      const jaListadas = mensagem.texto.endsWith(numeradas.join('\n'));
+      return jaListadas ? mensagem.texto : [mensagem.texto, ...numeradas].join('\n');
+    }
     case 'midia': {
       const rotulo = mensagem.midia === 'documento' ? 'Documento' : 'Vídeo';
       const detalhe = mensagem.legenda ?? mensagem.nomeArquivo ?? mensagem.url;

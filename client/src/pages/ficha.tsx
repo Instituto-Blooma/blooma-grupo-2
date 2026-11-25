@@ -11,6 +11,7 @@ import {
   formatarTelefone,
   mensagemDeErro,
   nomeDaPaciente,
+  pontos,
   ROTULO_SITUACAO,
   categoriaDoAlerta,
   SeloAlerta,
@@ -325,7 +326,7 @@ function CheckinItem({ checkin }: { checkin: Checkin }) {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold tabular-nums">
-            {checkin.pontuacao} de {checkin.pontuacaoMaxima} pontos
+            {checkin.pontuacao} de {pontos(checkin.pontuacaoMaxima)}
           </span>
           {checkin.prioridade ? <SeloPrioridade prioridade={checkin.prioridade} /> : null}
         </div>

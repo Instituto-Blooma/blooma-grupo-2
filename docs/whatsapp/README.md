@@ -86,6 +86,31 @@ https://wa.me/<número do robô só com dígitos>?text=Oi%20<CÓDIGO>
 
 Exemplo, se o número do robô fosse +55 11 99999-0000 e o código ACC: `https://wa.me/5511999990000?text=Oi%20ACC`. O `%20` é o espaço. Esse link pode virar QR code em qualquer gerador de QR. O número é o que a Meta der para a conta do WhatsApp Business.
 
+### Pacientes fictícias para ver o site
+
+Para ver a Fila, as fichas, os alertas e os avisos com dados (por exemplo na versão de teste do Railway), com o WhatsApp **simulado**:
+
+```bash
+pnpm run demo:pacientes                       # hospital "acme-corp" ou o único cadastrado
+pnpm run demo:pacientes -- --hospital <slug>  # outro hospital (o endereço curto dele)
+```
+
+Cria 9 pacientes fictícias, com telefones `+55 00 90000-0001` a `-0009` (o DDD 00 não existe):
+
+| Paciente          | O que mostra                                                                         |
+| ----------------- | ------------------------------------------------------------------------------------ |
+| Joana Pereira     | Resposta de risco no check-in (respondeu digitando "dois") → urgente, sinal de risco |
+| Luíza Costa       | Escreveu uma palavra de risco → urgente, sinal de risco                              |
+| Teresa Alves      | Prioridade alta                                                                      |
+| Cláudia Moura     | Prioridade moderada                                                                  |
+| Rita Gomes        | O robô não entendeu as respostas                                                     |
+| Maria Silva       | Prioridade baixa: só aviso; três check-ins no histórico                              |
+| Helena Rocha      | Prioridade baixa: só aviso (1 ponto)                                                 |
+| Beatriz Nunes     | Cadastro incompleto                                                                  |
+| +55 00 90000-0009 | Ainda não aceitou o termo                                                            |
+
+Se faltar código do hospital, termo, palavras de risco ou escala, o comando cria versões de teste. Rodar de novo recria as mesmas pacientes. Para apagar tudo, use o comando abaixo.
+
 ### Apagar os dados de teste
 
 ```bash

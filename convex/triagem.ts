@@ -30,6 +30,7 @@ import {
   prioridadeMaisAlta,
   usaBotoes,
   validarEscala,
+  type ConteudoEscala,
   type Prioridade,
 } from './lib/escala';
 import { normalizarTexto } from './lib/texto';
@@ -225,10 +226,9 @@ async function iniciarCheckin(
   await enviarPergunta(ctx, paciente.telefone, escala, 0, introducao);
 }
 
-async function enviarPergunta(
-  ctx: MutationCtx,
-  telefone: string,
-  escala: Doc<'escalasTriagem'>,
+/** Text of a check-in question as the patient sees it (also used by convex/demonstracao.ts). */
+export function textoDaPergunta(
+  escala: Pick<ConteudoEscala, 'perguntas'>,
   indice: number,
   introducao?: string
 ) {
@@ -245,7 +245,23 @@ async function enviarPergunta(
     'Toque em uma opção ou responda com o número:',
     ...pergunta.opcoes.map((opcao, posicao) => `${posicao + 1}. ${opcao.titulo}`),
   ].join('\n');
-  const texto = comNumeros.length <= MAX_CORPO_PERGUNTA ? comNumeros : inicio.join('\n');
+  return comNumeros.length <= MAX_CORPO_PERGUNTA ? comNumeros : inicio.join('\n');
+}
+
+/** Closing message of a check-in (with CVV/SAMU after a risk answer). */
+export function mensagemFinalDoCheckin(teveRisco: boolean) {
+  return teveRisco ? `${MENSAGEM_FIM_CHECKIN}\n\n${MENSAGEM_CRISE}` : MENSAGEM_FIM_CHECKIN;
+}
+
+async function enviarPergunta(
+  ctx: MutationCtx,
+  telefone: string,
+  escala: Doc<'escalasTriagem'>,
+  indice: number,
+  introducao?: string
+) {
+  const pergunta = escala.perguntas[indice];
+  const texto = textoDaPergunta(escala, indice, introducao);
   const opcoes = pergunta.opcoes.map((opcao) => ({
     id: `${PREFIXO_OPCAO_CHECKIN}${pergunta.id}:${opcao.id}`,
     titulo: opcao.titulo,
@@ -353,11 +369,7 @@ async function tratarRespostaDoCheckin(
   } else {
     await colocarNaFila(ctx, paciente._id, prioridade);
   }
-  await enviarTexto(
-    ctx,
-    paciente.telefone,
-    teveRisco ? `${MENSAGEM_FIM_CHECKIN}\n\n${MENSAGEM_CRISE}` : MENSAGEM_FIM_CHECKIN
-  );
+  await enviarTexto(ctx, paciente.telefone, mensagemFinalDoCheckin(teveRisco));
 }
 
 async function interromperCheckin(

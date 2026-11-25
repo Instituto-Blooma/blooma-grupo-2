@@ -136,6 +136,11 @@ export function data(momento: number) {
   return formatoData.format(new Date(momento));
 }
 
+/** "1 ponto", "0 pontos", "9 pontos". */
+export function pontos(quantidade: number) {
+  return `${quantidade} ${quantidade === 1 ? 'ponto' : 'pontos'}`;
+}
+
 export function mensagemDeErro(erro: unknown) {
   if (erro instanceof ConvexError && typeof erro.data === 'string') return erro.data;
   return 'Algo deu errado. Tente de novo.';

@@ -73,6 +73,28 @@ export function Conversa({
   );
 }
 
+/**
+ * Shows WhatsApp formatting like the phone does: *bold* and _italic_, without the symbols.
+ * Text only (no HTML is ever interpreted).
+ */
+function TextoWhatsApp({ texto }: { texto: string }) {
+  const partes = texto.split(/(\*[^*\n]+\*|_[^_\n]+_)/g);
+  return (
+    <>
+      {partes.map((parte, indice) => {
+        const chave = `${indice}-${parte.length}`;
+        if (parte.length > 2 && parte.startsWith('*') && parte.endsWith('*')) {
+          return <strong key={chave}>{parte.slice(1, -1)}</strong>;
+        }
+        if (parte.length > 2 && parte.startsWith('_') && parte.endsWith('_')) {
+          return <em key={chave}>{parte.slice(1, -1)}</em>;
+        }
+        return <span key={chave}>{parte}</span>;
+      })}
+    </>
+  );
+}
+
 /** Professional messages start with "*Ana (psicóloga):*" — shown as a bold first line. */
 function separarAssinatura(texto: string) {
   const correspondencia = /^\*([^*\n]+):\*\n/.exec(texto);
@@ -101,7 +123,9 @@ function Balao({ mensagem, nomeDaPaciente }: { mensagem: Mensagem; nomeDaPacient
         )}
       >
         <p className="mb-0.5 text-xs font-semibold text-marca-secundario">{autor}</p>
-        <p className="whitespace-pre-wrap break-words">{corpo}</p>
+        <p className="whitespace-pre-wrap break-words">
+          <TextoWhatsApp texto={corpo} />
+        </p>
         <p className="mt-1 text-right text-[11px] text-marca-secundario">
           {dataHora(mensagem.enviadaEm)}
         </p>
