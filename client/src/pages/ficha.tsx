@@ -5,6 +5,7 @@ import type { FunctionReturnType } from 'convex/server';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppShell, Aviso } from '@/components/equipe/app-shell';
+import { Conversa } from '@/components/equipe/conversa';
 import {
   dataHora,
   formatarTelefone,
@@ -50,6 +51,11 @@ function ConteudoFicha({ pacienteId }: { pacienteId: Id<'pacientes'> }) {
           <CheckinsCard pacienteId={pacienteId} />
         </div>
         <div className="space-y-6">
+          <Conversa
+            pacienteId={pacienteId}
+            nomeDaPaciente={ficha.linha.apelido ?? nomeDaPaciente(ficha.linha)}
+            bloqueio={bloqueioDaConversa(ficha)}
+          />
           <CadastroCard ficha={ficha} pacienteId={pacienteId} />
           <HistoricoDoCasoCard ficha={ficha} />
         </div>
@@ -77,7 +83,67 @@ function CabecalhoFicha({ ficha, pacienteId }: { ficha: Ficha; pacienteId: Id<'p
           ? `${ROTULO_SITUACAO[linha.situacaoCaso]}${linha.responsavel ? ` com ${linha.responsavel}` : ''}`
           : 'Sem caso aberto'}
       </p>
+      <BotoesDoCaso ficha={ficha} pacienteId={pacienteId} />
       <PedidoDeExclusao ficha={ficha} pacienteId={pacienteId} />
+    </div>
+  );
+}
+
+function bloqueioDaConversa(ficha: Ficha) {
+  if (ficha.linha.exclusaoPedida) {
+    return 'Ela pediu para apagar os dados: não é possível mandar mensagens.';
+  }
+  if (!ficha.linha.aceitouTermo) {
+    return 'Ela ainda não aceitou o termo de consentimento: não é possível mandar mensagens.';
+  }
+  return null;
+}
+
+/** "Assumir caso" and "Concluir caso". */
+function BotoesDoCaso({ ficha, pacienteId }: { ficha: Ficha; pacienteId: Id<'pacientes'> }) {
+  const assumir = useMutation(api.equipe.assumirCaso);
+  const concluir = useMutation(api.equipe.concluirCaso);
+  const [ocupado, setOcupado] = useState(false);
+  const { linha } = ficha;
+  const podeAssumir = !linha.naFila || !ficha.souResponsavel;
+
+  const executar = async (acao: () => Promise<null>, sucesso: string) => {
+    setOcupado(true);
+    try {
+      await acao();
+      toast.success(sucesso);
+    } catch (erro) {
+      toast.error(mensagemDeErro(erro));
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  const confirmarConclusao = () => {
+    if (
+      window.confirm(
+        'Concluir este caso? Ela sai da fila. Se ela tiver um novo check-in ou alerta, um caso novo é aberto.'
+      )
+    ) {
+      void executar(() => concluir({ pacienteId }), 'Caso concluído.');
+    }
+  };
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {podeAssumir ? (
+        <Button
+          onClick={() => executar(() => assumir({ pacienteId }), 'Você assumiu o caso.')}
+          disabled={ocupado}
+        >
+          {linha.naFila && linha.responsavel ? 'Assumir no lugar' : 'Assumir caso'}
+        </Button>
+      ) : null}
+      {linha.naFila ? (
+        <Button variant="outline" onClick={confirmarConclusao} disabled={ocupado}>
+          Concluir caso
+        </Button>
+      ) : null}
     </div>
   );
 }
