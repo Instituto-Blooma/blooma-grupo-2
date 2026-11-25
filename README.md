@@ -4,6 +4,19 @@ Instituto Blooma product on the **convexplate** B2B foundation: **Organizations*
 
 Built on Vite, React, TypeScript, and Convex — with local dev, GitHub CI, and Railway deploy.
 
+## Site da equipe de psicologia (grupo 2)
+
+A equipe do hospital entra pelo convite (organização = hospital) e vê só as pacientes do próprio hospital.
+
+| Tela               | Endereço          | O que mostra                                                                                                |
+| ------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------- |
+| Fila               | `/`               | Casos abertos: urgente, alta, moderada, baixa; na mesma prioridade, quem espera há mais tempo               |
+| Todas as pacientes | `/pacientes`      | Todas as pacientes do hospital, com busca pelo nome completo                                                |
+| Ficha              | `/pacientes/<id>` | Cadastro, alertas, todos os check-ins com respostas e pontos, conversa no WhatsApp, assumir e concluir caso |
+| Meu perfil         | `/perfil`         | Nome e função que aparecem no começo de cada mensagem para a paciente                                       |
+
+Como a triagem funciona no WhatsApp (cadastro, check-in semanal, escala de EXEMPLO e regra de prioridade): [docs/whatsapp/README.md](./docs/whatsapp/README.md#triagem-cadastro-check-in-e-prioridade). Backend: `convex/triagem.ts` (robô) e `convex/equipe.ts` (site).
+
 ## What You Get
 
 - **Organizations** (multi-company isolation) via `@djpanda/convex-tenants`

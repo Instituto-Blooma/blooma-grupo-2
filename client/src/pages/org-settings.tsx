@@ -13,9 +13,9 @@ type SettingsSection = 'members' | 'teams' | 'org';
 
 function SettingsNav({ section }: { section: SettingsSection }) {
   const links: Array<{ to: string; label: string; id: SettingsSection }> = [
-    { to: '/settings/members', label: 'Members', id: 'members' },
-    { to: '/settings/teams', label: 'Teams', id: 'teams' },
-    { to: '/settings/org', label: 'Organization', id: 'org' },
+    { to: '/settings/members', label: 'Pessoas', id: 'members' },
+    { to: '/settings/teams', label: 'Grupos', id: 'teams' },
+    { to: '/settings/org', label: 'Hospital', id: 'org' },
   ];
 
   return (
@@ -35,15 +35,15 @@ export function OrgSettingsPage({ section }: { section: SettingsSection }) {
   const { currentOrganization, isLoading } = useTenantsData();
 
   if (isLoading) {
-    return <div className="container p-8">Loading organization settings...</div>;
+    return <div className="container p-8">Carregando as configurações do hospital...</div>;
   }
 
   if (!currentOrganization) {
     return (
       <div className="container p-8 space-y-4">
-        <p>No active organization selected.</p>
+        <p>Nenhum hospital selecionado.</p>
         <Link to="/">
-          <Button variant="outline">Back to dashboard</Button>
+          <Button variant="outline">Voltar para a fila</Button>
         </Link>
       </div>
     );
@@ -58,10 +58,10 @@ export function OrgSettingsPage({ section }: { section: SettingsSection }) {
             <div className="space-y-2">
               <BloomaWordmark compact />
               <h1 className="font-serif text-2xl font-semibold">{currentOrganization.name}</h1>
-              <p className="text-sm text-muted-foreground">Organization settings</p>
+              <p className="text-sm text-muted-foreground">Configurações do hospital</p>
             </div>
             <Link to="/">
-              <Button variant="outline">Dashboard</Button>
+              <Button variant="outline">Fila</Button>
             </Link>
           </div>
           <SettingsNav section={section} />
