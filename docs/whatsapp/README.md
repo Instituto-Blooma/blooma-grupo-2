@@ -34,14 +34,14 @@ Regras em [`convex/pacientes.ts`](../../convex/pacientes.ts), nesta ordem para c
 Regras em [`convex/triagem.ts`](../../convex/triagem.ts) e [`convex/lib/escala.ts`](../../convex/lib/escala.ts):
 
 1. **Cadastro** (logo depois do aceite): o robô pergunta o nome completo, depois como ela gosta de ser chamada e depois o número do prontuário ("NÃO SEI" vale). A equipe pode corrigir no site.
-2. **Check-in**: uma pergunta por vez, com botões (até 3 opções) ou lista (de 4 a 10). Cada resposta vale pontos.
+2. **Check-in**: uma pergunta por vez, com botões (até 3 opções) ou lista (de 4 a 10), e as opções numeradas no texto. Cada resposta vale pontos. Ela pode tocar no botão ou digitar: o número ("2", "opção 2"), o número por extenso ("dois", "segunda") ou o nome da opção, com maiúsculas ou minúsculas e com ou sem acento. Se o que ela digitar servir para duas opções (por exemplo "um" quando existe a opção "Um pouco"), o robô pergunta de novo.
 3. **Regra fixa de prioridade**: qualquer resposta de risco → **urgente**. Sem risco, a soma decide: a partir de `altaAPartirDe` → **alta**; a partir de `moderadaAPartirDe` → **moderada**; abaixo → **baixa**. Nenhuma IA decide nada.
 4. **Resposta de risco**: o caso fica urgente na fila na hora. A paciente termina o check-in e, na mensagem final, recebe o CVV (188) e o SAMU (192).
 5. **Palavra de risco escrita**: o robô manda o CVV e o SAMU na hora (como antes), o check-in em andamento para e o caso fica urgente.
-6. **Robô não entendeu** (3 respostas erradas seguidas): o check-in para e o caso vai para a fila com o alerta "o robô não entendeu".
+6. **Robô não entendeu** (3 respostas erradas seguidas): o check-in para e o caso vai para a fila com o alerta cinza "Robô não entendeu", separado do alerta vermelho "Sinal de risco" (resposta de risco ou palavra de risco). A fila tem um filtro para cada tipo.
 7. **Toda semana**: segunda-feira às 9h (Brasília), toda paciente com cadastro completo recebe um check-in novo ([`convex/crons.ts`](../../convex/crons.ts)). Um check-in da semana anterior sem resposta fica como "interrompido".
 
-Cada check-in concluído abre um caso na fila da equipe (ou atualiza o caso aberto). Num caso aberto, a prioridade só sobe: quem fecha o caso é a equipe.
+Check-in com prioridade urgente, alta ou moderada abre um caso na fila (ou atualiza o caso aberto). Check-in com prioridade **baixa** não abre caso: a equipe recebe um aviso ("Fulana concluiu o check-in às 14:32 do dia 25/11/2026. A classificação da prioridade é baixa.") e as respostas ficam na ficha. Se a equipe quiser, pode assumir o caso pela ficha. Num caso aberto, a prioridade só sobe: quem fecha o caso é a equipe.
 
 ### A escala é dado (EXEMPLO por enquanto)
 

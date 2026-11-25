@@ -454,8 +454,8 @@ async function repetirPergunta(ctx: MutationCtx, telefone: string, pergunta: Per
 
 /**
  * Turns what the patient typed into an option ID of the open question.
- * Accepts the option number ("2", "2.", "opção 2") or the exact option name, ignoring accents,
- * case and punctuation ("insonia" = "Insônia"). With `tolerarErroDeDigitacao` it also accepts a
+ * Accepts the option number ("2", "2.", "opção 2"), the number in words ("dois", "segunda") or
+ * the exact option name, ignoring accents, case and punctuation ("INSONIA" = "Insônia"). With `tolerarErroDeDigitacao` it also accepts a
  * small typo ("ansieade") when only one option is that close — off unless the team approves it.
  */
 export function resolverOpcaoDigitada(
@@ -465,7 +465,9 @@ export function resolverOpcaoDigitada(
 ): string | null {
   if (!menu || menu.length === 0) return null;
 
-  const numero = /^\s*(?:op[cç][aã]o\s*)?(\d{1,2})\s*[.):-]?\s*$/i.exec(texto);
+  const numero = /^\s*(?:(?:op[cç][aã]o|n[uú]mero|resposta)\s*)?(\d{1,2})\s*[.):ºª°-]?\s*$/i.exec(
+    texto
+  );
   if (numero) {
     const indice = Number(numero[1]) - 1;
     return menu[indice]?.id ?? null;
@@ -476,7 +478,22 @@ export function resolverOpcaoDigitada(
 
   const exatas = menu.filter((opcao) => normalizarTexto(opcao.titulo) === digitado);
   if (exatas.length === 1) return exatas[0].id;
-  if (exatas.length > 1 || !tolerarErroDeDigitacao) return null;
+  if (exatas.length > 1) return null;
+
+  // Number written in words: "dois" = "2", "segunda" = "2", "opção três" = "3".
+  const porExtenso = numeroPorExtenso(digitado);
+  if (porExtenso !== null) {
+    const escolhida = menu[porExtenso - 1];
+    if (!escolhida) return null;
+    // "uma" could also be the start of the option "Uma vez": ambiguous, ask again.
+    const palavra = digitado.split(' ').at(-1) ?? '';
+    const ambigua = menu.some(
+      (opcao) =>
+        opcao.id !== escolhida.id && normalizarTexto(opcao.titulo).split(' ')[0] === palavra
+    );
+    return ambigua ? null : escolhida.id;
+  }
+  if (!tolerarErroDeDigitacao) return null;
 
   const tolerancia = digitado.length >= 8 ? 2 : digitado.length >= 4 ? 1 : 0;
   if (tolerancia === 0) return null;
@@ -487,6 +504,49 @@ export function resolverOpcaoDigitada(
   const melhor = Math.min(...distancias.map((d) => d.distancia));
   const empatadas = distancias.filter((d) => d.distancia === melhor);
   return melhor <= tolerancia && empatadas.length === 1 ? empatadas[0].id : null;
+}
+
+const NUMEROS_POR_EXTENSO: Record<string, number> = {
+  um: 1,
+  uma: 1,
+  primeiro: 1,
+  primeira: 1,
+  dois: 2,
+  duas: 2,
+  segundo: 2,
+  segunda: 2,
+  tres: 3,
+  terceiro: 3,
+  terceira: 3,
+  quatro: 4,
+  quarto: 4,
+  quarta: 4,
+  cinco: 5,
+  quinto: 5,
+  quinta: 5,
+  seis: 6,
+  sexto: 6,
+  sexta: 6,
+  sete: 7,
+  setimo: 7,
+  setima: 7,
+  oito: 8,
+  oitavo: 8,
+  oitava: 8,
+  nove: 9,
+  nono: 9,
+  nona: 9,
+  dez: 10,
+  decimo: 10,
+  decima: 10,
+};
+
+/** "dois", "opcao dois", "a segunda", "numero 3" (already normalized) → the number, or `null`. */
+function numeroPorExtenso(normalizado: string): number | null {
+  const correspondencia =
+    /^(?:(?:a|o|opcao|numero|resposta)\s+)*(?:(?:a|o)\s+)?([a-z]+)(?:\s+opcao)?$/.exec(normalizado);
+  if (!correspondencia) return null;
+  return NUMEROS_POR_EXTENSO[correspondencia[1]] ?? null;
 }
 
 /** Levenshtein distance between two short strings. */

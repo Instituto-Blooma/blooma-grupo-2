@@ -149,6 +149,12 @@ const schema = defineSchema({
       v.union(v.literal('aguardando'), v.literal('em_atendimento'), v.literal('concluido'))
     ),
     responsavelId: v.optional(v.id('users')),
+    /** Priority of the last finished check-in (also when it opened no case). */
+    ultimaPrioridade: v.optional(prioridadeValidator),
+    /** Open case has a real-risk alert (risk answer or risk word): queue filter "Risco". */
+    casoComRisco: v.optional(v.boolean()),
+    /** Open case has the "bot did not understand her" alert: queue filter. */
+    casoNaoEntendido: v.optional(v.boolean()),
   })
     .index('by_telefone', ['telefone'])
     .index('by_organizationId', ['organizationId'])
@@ -156,6 +162,20 @@ const schema = defineSchema({
     .index('by_organizationId_and_naFila_and_ordemFila_and_naFilaDesde', [
       'organizationId',
       'naFila',
+      'ordemFila',
+      'naFilaDesde',
+    ])
+    .index('by_organizationId_and_naFila_and_casoComRisco_and_ordemFila_and_naFilaDesde', [
+      'organizationId',
+      'naFila',
+      'casoComRisco',
+      'ordemFila',
+      'naFilaDesde',
+    ])
+    .index('by_organizationId_and_naFila_and_casoNaoEntendido_and_ordemFila_and_naFilaDesde', [
+      'organizationId',
+      'naFila',
+      'casoNaoEntendido',
       'ordemFila',
       'naFilaDesde',
     ])
@@ -171,6 +191,20 @@ const schema = defineSchema({
     funcao: v.string(),
     atualizadoEm: v.number(),
   }).index('by_userId', ['userId']),
+
+  // Notices for the team that need no case, e.g. "Fulana finished the check-in: low priority".
+  avisosEquipe: defineTable({
+    organizationId: v.string(),
+    pacienteId: v.id('pacientes'),
+    checkinId: v.id('checkins'),
+    tipo: v.literal('checkin_prioridade_baixa'),
+    visto: v.boolean(),
+    vistoPor: v.optional(v.id('users')),
+    vistoEm: v.optional(v.number()),
+    criadoEm: v.number(),
+  })
+    .index('by_organizationId_and_visto_and_criadoEm', ['organizationId', 'visto', 'criadoEm'])
+    .index('by_pacienteId', ['pacienteId']),
 
   // Case history: who took over and who closed it, and when.
   eventosCaso: defineTable({

@@ -455,6 +455,10 @@ export const apagarRestoDosDados = internalMutation({
         .query('eventosCaso')
         .withIndex('by_pacienteId_and_em', (q) => q.eq('pacienteId', args.pacienteId))
         .take(LOTE_EXCLUSAO),
+      ctx.db
+        .query('avisosEquipe')
+        .withIndex('by_pacienteId', (q) => q.eq('pacienteId', args.pacienteId))
+        .take(LOTE_EXCLUSAO),
     ]);
     for (const documento of lotes.flat()) {
       await ctx.db.delete(documento._id);
@@ -645,6 +649,7 @@ const TABELAS_DE_CONVERSA = [
   'checkins',
   'alertasPaciente',
   'eventosCaso',
+  'avisosEquipe',
 ] as const;
 const TABELAS_DE_CONFIGURACAO = [
   'hospitais',

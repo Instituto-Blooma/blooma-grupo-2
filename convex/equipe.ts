@@ -15,7 +15,7 @@ import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { requireUserId } from './lib/auth';
-import { ORDEM_PRIORIDADE } from './lib/escala';
+import { ORDEM_PRIORIDADE, ORDEM_SEM_PRIORIDADE } from './lib/escala';
 import {
   requireAcessoAPaciente,
   requireMembroDoHospital,
@@ -28,6 +28,8 @@ const MAX_EVENTOS_NA_FICHA = 50;
 const MAX_ALERTAS_NA_LINHA = 5;
 const MAX_NOME_PERFIL = 60;
 const MAX_FUNCAO_PERFIL = 40;
+const MAX_CONTAGEM = 100;
+const MAX_AVISOS_POR_VEZ = 200;
 
 // ---------------------------------------------------------------------------
 // Professional profile (name and role shown to patients)
@@ -83,21 +85,184 @@ async function nomeDoProfissional(ctx: QueryCtx | MutationCtx, userId: Id<'users
 // Queue and list
 // ---------------------------------------------------------------------------
 
-/** Open cases of the hospital: urgent first, then high, moderate, low; within each, oldest first. */
+const filtroFilaValidator = v.union(
+  v.literal('todos'),
+  v.literal('risco'),
+  v.literal('nao_entendeu')
+);
+
+/**
+ * Open cases of the hospital: urgent first, then high, moderate, low; within each, oldest first.
+ * Filter "risco": cases with a real-risk alert. Filter "nao_entendeu": the bot did not understand.
+ */
 export const fila = query({
-  args: { organizationId: v.string(), paginationOpts: paginationOptsValidator },
+  args: {
+    organizationId: v.string(),
+    filtro: v.optional(filtroFilaValidator),
+    paginationOpts: paginationOptsValidator,
+  },
   handler: async (ctx, args) => {
     await requireMembroDoHospital(ctx, args.organizationId);
-    const pagina = await ctx.db
-      .query('pacientes')
-      .withIndex('by_organizationId_and_naFila_and_ordemFila_and_naFilaDesde', (q) =>
-        q.eq('organizationId', args.organizationId).eq('naFila', true)
-      )
-      .paginate(args.paginationOpts);
+    const consulta = ctx.db.query('pacientes');
+    const filtro = args.filtro ?? 'todos';
+    const pagina = await (
+      filtro === 'risco'
+        ? consulta.withIndex(
+            'by_organizationId_and_naFila_and_casoComRisco_and_ordemFila_and_naFilaDesde',
+            (q) =>
+              q
+                .eq('organizationId', args.organizationId)
+                .eq('naFila', true)
+                .eq('casoComRisco', true)
+          )
+        : filtro === 'nao_entendeu'
+          ? consulta.withIndex(
+              'by_organizationId_and_naFila_and_casoNaoEntendido_and_ordemFila_and_naFilaDesde',
+              (q) =>
+                q
+                  .eq('organizationId', args.organizationId)
+                  .eq('naFila', true)
+                  .eq('casoNaoEntendido', true)
+            )
+          : consulta.withIndex('by_organizationId_and_naFila_and_ordemFila_and_naFilaDesde', (q) =>
+              q.eq('organizationId', args.organizationId).eq('naFila', true)
+            )
+    ).paginate(args.paginationOpts);
     return {
       ...pagina,
       page: await Promise.all(pagina.page.map((paciente) => linhaDaPaciente(ctx, paciente))),
     };
+  },
+});
+
+/** How many open cases have each kind of alert, and how many notices are unread (max. 100). */
+export const resumoDaFila = query({
+  args: { organizationId: v.string() },
+  handler: async (ctx, args) => {
+    await requireMembroDoHospital(ctx, args.organizationId);
+    const [comRisco, naoEntendidos, avisos] = await Promise.all([
+      ctx.db
+        .query('pacientes')
+        .withIndex(
+          'by_organizationId_and_naFila_and_casoComRisco_and_ordemFila_and_naFilaDesde',
+          (q) =>
+            q.eq('organizationId', args.organizationId).eq('naFila', true).eq('casoComRisco', true)
+        )
+        .take(MAX_CONTAGEM + 1),
+      ctx.db
+        .query('pacientes')
+        .withIndex(
+          'by_organizationId_and_naFila_and_casoNaoEntendido_and_ordemFila_and_naFilaDesde',
+          (q) =>
+            q
+              .eq('organizationId', args.organizationId)
+              .eq('naFila', true)
+              .eq('casoNaoEntendido', true)
+        )
+        .take(MAX_CONTAGEM + 1),
+      ctx.db
+        .query('avisosEquipe')
+        .withIndex('by_organizationId_and_visto_and_criadoEm', (q) =>
+          q.eq('organizationId', args.organizationId).eq('visto', false)
+        )
+        .take(MAX_CONTAGEM + 1),
+    ]);
+    const contar = (lista: unknown[]) => ({
+      total: Math.min(lista.length, MAX_CONTAGEM),
+      mais: lista.length > MAX_CONTAGEM,
+    });
+    return {
+      risco: contar(comRisco),
+      naoEntendeu: contar(naoEntendidos),
+      avisosNaoVistos: contar(avisos),
+    };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Notices (low-priority check-ins: no case is opened)
+// ---------------------------------------------------------------------------
+
+/** Unread notices (newest first); with `vistos: true`, the ones already read. */
+export const avisos = query({
+  args: {
+    organizationId: v.string(),
+    vistos: v.boolean(),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    await requireMembroDoHospital(ctx, args.organizationId);
+    const pagina = await ctx.db
+      .query('avisosEquipe')
+      .withIndex('by_organizationId_and_visto_and_criadoEm', (q) =>
+        q.eq('organizationId', args.organizationId).eq('visto', args.vistos)
+      )
+      .order('desc')
+      .paginate(args.paginationOpts);
+    return {
+      ...pagina,
+      page: await Promise.all(
+        pagina.page.map(async (aviso) => {
+          const [paciente, checkin] = await Promise.all([
+            ctx.db.get('pacientes', aviso.pacienteId),
+            ctx.db.get('checkins', aviso.checkinId),
+          ]);
+          return {
+            _id: aviso._id,
+            pacienteId: aviso.pacienteId,
+            nomeCompleto: paciente?.nomeCompleto ?? null,
+            apelido: paciente?.apelido ?? null,
+            telefone: paciente?.telefone ?? '',
+            concluidoEm: checkin?.concluidoEm ?? aviso.criadoEm,
+            pontuacao: checkin?.pontuacao ?? null,
+            pontuacaoMaxima: checkin?.pontuacaoMaxima ?? null,
+            vistoPor: aviso.vistoPor ? await nomeDoProfissional(ctx, aviso.vistoPor) : null,
+            vistoEm: aviso.vistoEm ?? null,
+          };
+        })
+      ),
+    };
+  },
+});
+
+export const marcarAvisoComoVisto = mutation({
+  args: { avisoId: v.id('avisosEquipe') },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const aviso = await ctx.db.get('avisosEquipe', args.avisoId);
+    if (!aviso) throw new ConvexError('Aviso não encontrado.');
+    const userId = await requireMembroDoHospital(ctx, aviso.organizationId);
+    if (!aviso.visto) {
+      await ctx.db.patch('avisosEquipe', aviso._id, {
+        visto: true,
+        vistoPor: userId,
+        vistoEm: Date.now(),
+      });
+    }
+    return null;
+  },
+});
+
+export const marcarTodosOsAvisosComoVistos = mutation({
+  args: { organizationId: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const userId = await requireMembroDoHospital(ctx, args.organizationId);
+    const naoVistos = await ctx.db
+      .query('avisosEquipe')
+      .withIndex('by_organizationId_and_visto_and_criadoEm', (q) =>
+        q.eq('organizationId', args.organizationId).eq('visto', false)
+      )
+      .take(MAX_AVISOS_POR_VEZ);
+    const agora = Date.now();
+    for (const aviso of naoVistos) {
+      await ctx.db.patch('avisosEquipe', aviso._id, {
+        visto: true,
+        vistoPor: userId,
+        vistoEm: agora,
+      });
+    }
+    return null;
   },
 });
 
@@ -150,6 +315,9 @@ async function linhaDaPaciente(ctx: QueryCtx, paciente: Doc<'pacientes'>) {
     aceitouTermo: await temConsentimentoAtual(ctx, paciente),
     cadastroCompleto: paciente.cadastroConcluidoEm !== undefined,
     prioridade: paciente.prioridade ?? null,
+    ultimaPrioridade: paciente.ultimaPrioridade ?? null,
+    casoComRisco: paciente.naFila === true && paciente.casoComRisco === true,
+    casoNaoEntendido: paciente.naFila === true && paciente.casoNaoEntendido === true,
     ultimaPontuacao: paciente.ultimaPontuacao ?? null,
     ultimoCheckinEm: paciente.ultimoCheckinEm ?? null,
     checkinEmAndamento: paciente.checkinAtualId !== undefined,
@@ -282,16 +450,21 @@ export const assumirCaso = mutation({
     const { paciente, userId } = await requireAcessoAPaciente(ctx, args.pacienteId);
     if (paciente.naFila && paciente.responsavelId === userId) return null;
     const aberto = paciente.naFila === true;
+    // A new case (e.g. from a low-priority notice) starts with the last check-in's priority.
+    const prioridade = aberto ? paciente.prioridade : paciente.ultimaPrioridade;
     await ctx.db.patch('pacientes', paciente._id, {
       naFila: true,
       situacaoCaso: 'em_atendimento',
       responsavelId: userId,
+      prioridade,
       naFilaDesde: aberto ? (paciente.naFilaDesde ?? Date.now()) : Date.now(),
       ordemFila: aberto
-        ? (paciente.ordemFila ?? 9)
-        : paciente.prioridade
-          ? ORDEM_PRIORIDADE[paciente.prioridade]
-          : 9,
+        ? (paciente.ordemFila ?? ORDEM_SEM_PRIORIDADE)
+        : prioridade
+          ? ORDEM_PRIORIDADE[prioridade]
+          : ORDEM_SEM_PRIORIDADE,
+      casoComRisco: aberto ? paciente.casoComRisco === true : false,
+      casoNaoEntendido: aberto ? paciente.casoNaoEntendido === true : false,
     });
     await registrarEvento(ctx, paciente, userId, 'assumiu');
     return null;

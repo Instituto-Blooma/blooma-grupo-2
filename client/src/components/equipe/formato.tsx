@@ -1,5 +1,5 @@
 import { ConvexError } from 'convex/values';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export type Prioridade = 'urgente' | 'alta' | 'moderada' | 'baixa';
@@ -11,6 +11,13 @@ const PRIORIDADES: Record<Prioridade, { rotulo: string; classe: string }> = {
   alta: { rotulo: 'Alta', classe: 'bg-orange-100 text-orange-900 border-orange-300' },
   moderada: { rotulo: 'Moderada', classe: 'bg-amber-50 text-amber-900 border-amber-300' },
   baixa: { rotulo: 'Baixa', classe: 'bg-emerald-50 text-emerald-900 border-emerald-300' },
+};
+
+export const ROTULO_PRIORIDADE: Record<Prioridade, string> = {
+  urgente: PRIORIDADES.urgente.rotulo,
+  alta: PRIORIDADES.alta.rotulo,
+  moderada: PRIORIDADES.moderada.rotulo,
+  baixa: PRIORIDADES.baixa.rotulo,
 };
 
 export function SeloPrioridade({ prioridade }: { prioridade: Prioridade | null }) {
@@ -41,19 +48,45 @@ export const ROTULO_ALERTA: Record<TipoAlerta, string> = {
   robo_nao_entendeu: 'O robô não entendeu as respostas',
 };
 
-export function SeloAlerta({ tipo }: { tipo: TipoAlerta }) {
-  const grave = tipo !== 'robo_nao_entendeu';
+/** Two kinds of alert: real risk (red) and "the bot did not understand her" (grey). */
+export type CategoriaAlerta = 'risco' | 'nao_entendeu';
+
+export const ROTULO_CATEGORIA: Record<CategoriaAlerta, string> = {
+  risco: 'Sinal de risco',
+  nao_entendeu: 'Robô não entendeu',
+};
+
+export function categoriaDoAlerta(tipo: TipoAlerta): CategoriaAlerta {
+  return tipo === 'robo_nao_entendeu' ? 'nao_entendeu' : 'risco';
+}
+
+export const CLASSE_CATEGORIA: Record<CategoriaAlerta, string> = {
+  risco: 'border-red-300 bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-200',
+  nao_entendeu: 'border-slate-300 bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200',
+};
+
+/** With `tipo`, shows the detail ("Resposta de risco no check-in"); else the category name. */
+export function SeloAlerta({
+  categoria,
+  tipo,
+}: {
+  categoria?: CategoriaAlerta;
+  tipo?: TipoAlerta;
+}) {
+  const qual = categoria ?? (tipo ? categoriaDoAlerta(tipo) : 'risco');
   return (
     <span
       className={cn(
         'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-medium',
-        grave
-          ? 'border-red-300 bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-200'
-          : 'border-slate-300 bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-200'
+        CLASSE_CATEGORIA[qual]
       )}
     >
-      <AlertTriangle className="h-3 w-3" aria-hidden />
-      {ROTULO_ALERTA[tipo]}
+      {qual === 'risco' ? (
+        <AlertTriangle className="h-3 w-3" aria-hidden />
+      ) : (
+        <HelpCircle className="h-3 w-3" aria-hidden />
+      )}
+      {tipo ? ROTULO_ALERTA[tipo] : ROTULO_CATEGORIA[qual]}
     </span>
   );
 }

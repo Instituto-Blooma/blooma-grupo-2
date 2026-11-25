@@ -8,8 +8,9 @@
  *    SAMU 192 in the closing message of the check-in.
  * 3. Weekly: every Monday at 9h (Brasília) each signed-up patient gets a new check-in (crons.ts).
  *
- * Every finished check-in opens a case in the team queue (or updates the open one). An open case
- * never loses priority by itself: only the team closes it.
+ * A finished check-in with priority urgent, high or moderate opens a case in the team queue (or
+ * updates the open one). A low one only creates a notice for the team (`avisosEquipe`): nothing
+ * to solve. An open case never loses priority by itself: only the team closes it.
  *
  * Called from convex/pacientes.ts (messages after consent, risk words) and convex/canal.ts (bot
  * gave up after 3 wrong answers).
@@ -39,6 +40,8 @@ const MAX_NOME = 120;
 const MAX_APELIDO = 40;
 const MAX_PRONTUARIO = 30;
 const LOTE_SEMANAL = 25;
+/** WhatsApp limit for the text of a message with buttons or a list. */
+const MAX_CORPO_PERGUNTA = 1024;
 
 const PERGUNTA_NOME = 'Para começar, qual é o seu nome completo?';
 const PERGUNTA_APELIDO = 'Obrigado! E como você gosta de ser chamada?';
@@ -94,7 +97,7 @@ export async function registrarPalavraDeRisco(ctx: MutationCtx, paciente: Doc<'p
     tipo: 'palavra_de_risco',
     criadoEm: Date.now(),
   });
-  await colocarNaFila(ctx, paciente._id, 'urgente');
+  await colocarNaFila(ctx, paciente._id, 'urgente', 'risco');
 }
 
 // ---------------------------------------------------------------------------
@@ -116,7 +119,7 @@ export async function registrarQueRoboNaoEntendeu(ctx: MutationCtx, telefone: st
     ...(paciente.checkinAtualId ? { checkinId: paciente.checkinAtualId } : {}),
     criadoEm: Date.now(),
   });
-  await colocarNaFila(ctx, paciente._id, undefined);
+  await colocarNaFila(ctx, paciente._id, undefined, 'nao_entendeu');
 }
 
 // ---------------------------------------------------------------------------
@@ -230,11 +233,19 @@ async function enviarPergunta(
   introducao?: string
 ) {
   const pergunta = escala.perguntas[indice];
-  const texto = [
+  const inicio = [
     ...(introducao ? [introducao, ''] : []),
     `*Pergunta ${indice + 1} de ${escala.perguntas.length}*`,
     pergunta.texto,
+  ];
+  // Numbered options, so she can also type "2" or "dois" instead of tapping.
+  const comNumeros = [
+    ...inicio,
+    '',
+    'Toque em uma opção ou responda com o número:',
+    ...pergunta.opcoes.map((opcao, posicao) => `${posicao + 1}. ${opcao.titulo}`),
   ].join('\n');
+  const texto = comNumeros.length <= MAX_CORPO_PERGUNTA ? comNumeros : inicio.join('\n');
   const opcoes = pergunta.opcoes.map((opcao) => ({
     id: `${PREFIXO_OPCAO_CHECKIN}${pergunta.id}:${opcao.id}`,
     titulo: opcao.titulo,
@@ -298,7 +309,7 @@ async function tratarRespostaDoCheckin(
       checkinId: checkin._id,
       criadoEm: agora,
     });
-    await colocarNaFila(ctx, paciente._id, 'urgente');
+    await colocarNaFila(ctx, paciente._id, 'urgente', 'risco');
   }
 
   if (proximaPergunta < escala.perguntas.length) {
@@ -326,8 +337,22 @@ async function tratarRespostaDoCheckin(
     checkinAtualId: undefined,
     ultimoCheckinEm: agora,
     ultimaPontuacao: pontuacao,
+    ultimaPrioridade: prioridade,
   });
-  await colocarNaFila(ctx, paciente._id, prioridade);
+  const atualizada = await ctx.db.get('pacientes', paciente._id);
+  if (prioridade === 'baixa' && atualizada && !atualizada.naFila && paciente.organizationId) {
+    // Nothing to solve: no case is opened. The team gets a notice and the answers stay on record.
+    await ctx.db.insert('avisosEquipe', {
+      organizationId: paciente.organizationId,
+      pacienteId: paciente._id,
+      checkinId: checkin._id,
+      tipo: 'checkin_prioridade_baixa',
+      visto: false,
+      criadoEm: agora,
+    });
+  } else {
+    await colocarNaFila(ctx, paciente._id, prioridade);
+  }
   await enviarTexto(
     ctx,
     paciente.telefone,
@@ -358,11 +383,13 @@ async function interromperCheckin(
 /**
  * Opens a case in the queue, or updates the open one. In an open case the priority only goes
  * up; a closed case starts again with the new priority. `undefined` keeps the current priority.
+ * `alerta` marks the case for the queue filters: real risk, or the bot did not understand her.
  */
 export async function colocarNaFila(
   ctx: MutationCtx,
   pacienteId: Id<'pacientes'>,
-  prioridadeNova: Prioridade | undefined
+  prioridadeNova: Prioridade | undefined,
+  alerta?: 'risco' | 'nao_entendeu'
 ) {
   const paciente = await ctx.db.get('pacientes', pacienteId);
   if (!paciente) return;
@@ -379,6 +406,8 @@ export async function colocarNaFila(
     naFilaDesde: aberto ? (paciente.naFilaDesde ?? Date.now()) : Date.now(),
     situacaoCaso: aberto ? (paciente.situacaoCaso ?? 'aguardando') : 'aguardando',
     responsavelId: aberto ? paciente.responsavelId : undefined,
+    casoComRisco: (aberto && paciente.casoComRisco === true) || alerta === 'risco',
+    casoNaoEntendido: (aberto && paciente.casoNaoEntendido === true) || alerta === 'nao_entendeu',
   });
 }
 

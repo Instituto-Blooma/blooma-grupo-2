@@ -2,7 +2,7 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useMutation, usePaginatedQuery, useQuery } from 'convex/react';
 import type { FunctionReturnType } from 'convex/server';
-import { ArrowLeft } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, HelpCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppShell, Aviso } from '@/components/equipe/app-shell';
 import { Conversa } from '@/components/equipe/conversa';
@@ -12,6 +12,7 @@ import {
   mensagemDeErro,
   nomeDaPaciente,
   ROTULO_SITUACAO,
+  categoriaDoAlerta,
   SeloAlerta,
   SeloPrioridade,
 } from '@/components/equipe/formato';
@@ -183,39 +184,70 @@ function PedidoDeExclusao({ ficha, pacienteId }: { ficha: Ficha; pacienteId: Id<
 // ---------------------------------------------------------------------------
 
 function AlertasCard({ ficha }: { ficha: Ficha }) {
-  const vazio = ficha.alertas.length === 0 && ficha.alertasDeCrise.length === 0;
+  const deRisco = ficha.alertas.filter((alerta) => categoriaDoAlerta(alerta.tipo) === 'risco');
+  const naoEntendidos = ficha.alertas.filter(
+    (alerta) => categoriaDoAlerta(alerta.tipo) === 'nao_entendeu'
+  );
+  // Risk words written before the sign-up existed are only in the hospital-wide crisis list.
+  const riscoAntigo = deRisco.length === 0 ? ficha.alertasDeCrise : [];
   return (
     <Card>
       <CardHeader>
         <CardTitle>Alertas</CardTitle>
         <CardDescription>
-          Respostas de risco no check-in, palavras de risco escritas e vezes em que o robô não
-          entendeu.
+          Separados em dois tipos: sinal de risco real e respostas que o robô não entendeu.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        {vazio ? (
-          <p className="text-sm text-muted-foreground">Nenhum alerta.</p>
-        ) : (
-          <ul className="space-y-2">
-            {ficha.alertas.map((alerta) => (
-              <li key={alerta._id} className="flex flex-wrap items-center justify-between gap-2">
-                <SeloAlerta tipo={alerta.tipo} />
-                <span className="text-xs text-muted-foreground">{dataHora(alerta.criadoEm)}</span>
-              </li>
-            ))}
-            {ficha.alertas.length === 0
-              ? ficha.alertasDeCrise.map((momento) => (
-                  <li key={momento} className="flex flex-wrap items-center justify-between gap-2">
-                    <SeloAlerta tipo="palavra_de_risco" />
-                    <span className="text-xs text-muted-foreground">{dataHora(momento)}</span>
-                  </li>
-                ))
-              : null}
-          </ul>
-        )}
+      <CardContent className="space-y-5">
+        <section className="space-y-2">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-red-800 dark:text-red-200">
+            <AlertTriangle className="h-4 w-4" aria-hidden />
+            Sinais de risco
+          </h3>
+          {deRisco.length === 0 && riscoAntigo.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum sinal de risco.</p>
+          ) : (
+            <ul className="space-y-2">
+              {deRisco.map((alerta) => (
+                <LinhaAlerta key={alerta._id} tipo={alerta.tipo} em={alerta.criadoEm} />
+              ))}
+              {riscoAntigo.map((momento) => (
+                <LinhaAlerta key={momento} tipo="palavra_de_risco" em={momento} />
+              ))}
+            </ul>
+          )}
+        </section>
+        <section className="space-y-2">
+          <h3 className="flex items-center gap-2 text-sm font-semibold">
+            <HelpCircle className="h-4 w-4" aria-hidden />
+            Respostas que o robô não entendeu
+          </h3>
+          {naoEntendidos.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhuma.</p>
+          ) : (
+            <>
+              <ul className="space-y-2">
+                {naoEntendidos.map((alerta) => (
+                  <LinhaAlerta key={alerta._id} tipo={alerta.tipo} em={alerta.criadoEm} />
+                ))}
+              </ul>
+              <p className="text-xs text-muted-foreground">
+                O que ela escreveu está na conversa. O check-in parou ali; continue pela conversa.
+              </p>
+            </>
+          )}
+        </section>
       </CardContent>
     </Card>
+  );
+}
+
+function LinhaAlerta({ tipo, em }: { tipo: Parameters<typeof categoriaDoAlerta>[0]; em: number }) {
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-2">
+      <SeloAlerta tipo={tipo} />
+      <span className="text-xs text-muted-foreground">{dataHora(em)}</span>
+    </li>
   );
 }
 

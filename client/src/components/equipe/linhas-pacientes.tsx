@@ -7,6 +7,7 @@ import {
   data,
   formatarTelefone,
   nomeDaPaciente,
+  ROTULO_PRIORIDADE,
   ROTULO_SITUACAO,
   SeloAlerta,
   SeloPrioridade,
@@ -63,9 +64,8 @@ export function LinhasPacientes({
                   {linha.naFila || mostrarCaso === 'fila' ? (
                     <SeloPrioridade prioridade={linha.prioridade} />
                   ) : null}
-                  {linha.alertas.map((tipo) => (
-                    <SeloAlerta key={tipo} tipo={tipo} />
-                  ))}
+                  {linha.casoComRisco ? <SeloAlerta categoria="risco" /> : null}
+                  {linha.casoNaoEntendido ? <SeloAlerta categoria="nao_entendeu" /> : null}
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                   <span>{formatarTelefone(linha.telefone)}</span>
@@ -73,6 +73,9 @@ export function LinhasPacientes({
                     <span>
                       Último check-in: {data(linha.ultimoCheckinEm)} · {linha.ultimaPontuacao}{' '}
                       pontos
+                      {linha.ultimaPrioridade
+                        ? ` · prioridade ${ROTULO_PRIORIDADE[linha.ultimaPrioridade].toLowerCase()}`
+                        : ''}
                     </span>
                   ) : (
                     <span>Sem check-in concluído</span>
