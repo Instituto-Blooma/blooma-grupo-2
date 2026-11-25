@@ -14,10 +14,12 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as DevInboxRouteImport } from './routes/dev/inbox'
 import { Route as AcceptInvitationIdRouteImport } from './routes/accept-invitation.$id'
+import { Route as AuthenticatedSimuladorRouteImport } from './routes/_authenticated/simulador'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedSettingsTeamsRouteImport } from './routes/_authenticated/settings/teams'
 import { Route as AuthenticatedSettingsOrgRouteImport } from './routes/_authenticated/settings/org'
 import { Route as AuthenticatedSettingsMembersRouteImport } from './routes/_authenticated/settings/members'
+import { Route as AuthenticatedPacientesPatientIdRouteImport } from './routes/_authenticated/pacientes.$patientId'
 import { Route as AuthenticatedDevTenantsRouteImport } from './routes/_authenticated/dev/tenants'
 import { Route as AuthenticatedDevRichtextCollabRouteImport } from './routes/_authenticated/dev/richtext-collab'
 import { Route as AuthenticatedDevPermissionsRouteImport } from './routes/_authenticated/dev/permissions'
@@ -47,6 +49,11 @@ const AcceptInvitationIdRoute = AcceptInvitationIdRouteImport.update({
   path: '/accept-invitation/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedSimuladorRoute = AuthenticatedSimuladorRouteImport.update({
+  id: '/simulador',
+  path: '/simulador',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -68,6 +75,12 @@ const AuthenticatedSettingsMembersRoute =
   AuthenticatedSettingsMembersRouteImport.update({
     id: '/settings/members',
     path: '/settings/members',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedPacientesPatientIdRoute =
+  AuthenticatedPacientesPatientIdRouteImport.update({
+    id: '/pacientes/$patientId',
+    path: '/pacientes/$patientId',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedDevTenantsRoute = AuthenticatedDevTenantsRouteImport.update({
@@ -97,12 +110,14 @@ export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/login': typeof LoginRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/simulador': typeof AuthenticatedSimuladorRoute
   '/accept-invitation/$id': typeof AcceptInvitationIdRoute
   '/dev/inbox': typeof DevInboxRoute
   '/dev/form': typeof AuthenticatedDevFormRoute
   '/dev/permissions': typeof AuthenticatedDevPermissionsRoute
   '/dev/richtext-collab': typeof AuthenticatedDevRichtextCollabRoute
   '/dev/tenants': typeof AuthenticatedDevTenantsRoute
+  '/pacientes/$patientId': typeof AuthenticatedPacientesPatientIdRoute
   '/settings/members': typeof AuthenticatedSettingsMembersRoute
   '/settings/org': typeof AuthenticatedSettingsOrgRoute
   '/settings/teams': typeof AuthenticatedSettingsTeamsRoute
@@ -110,6 +125,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/simulador': typeof AuthenticatedSimuladorRoute
   '/accept-invitation/$id': typeof AcceptInvitationIdRoute
   '/dev/inbox': typeof DevInboxRoute
   '/': typeof AuthenticatedIndexRoute
@@ -117,6 +133,7 @@ export interface FileRoutesByTo {
   '/dev/permissions': typeof AuthenticatedDevPermissionsRoute
   '/dev/richtext-collab': typeof AuthenticatedDevRichtextCollabRoute
   '/dev/tenants': typeof AuthenticatedDevTenantsRoute
+  '/pacientes/$patientId': typeof AuthenticatedPacientesPatientIdRoute
   '/settings/members': typeof AuthenticatedSettingsMembersRoute
   '/settings/org': typeof AuthenticatedSettingsOrgRoute
   '/settings/teams': typeof AuthenticatedSettingsTeamsRoute
@@ -126,6 +143,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/simulador': typeof AuthenticatedSimuladorRoute
   '/accept-invitation/$id': typeof AcceptInvitationIdRoute
   '/dev/inbox': typeof DevInboxRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
@@ -133,6 +151,7 @@ export interface FileRoutesById {
   '/_authenticated/dev/permissions': typeof AuthenticatedDevPermissionsRoute
   '/_authenticated/dev/richtext-collab': typeof AuthenticatedDevRichtextCollabRoute
   '/_authenticated/dev/tenants': typeof AuthenticatedDevTenantsRoute
+  '/_authenticated/pacientes/$patientId': typeof AuthenticatedPacientesPatientIdRoute
   '/_authenticated/settings/members': typeof AuthenticatedSettingsMembersRoute
   '/_authenticated/settings/org': typeof AuthenticatedSettingsOrgRoute
   '/_authenticated/settings/teams': typeof AuthenticatedSettingsTeamsRoute
@@ -143,12 +162,14 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/admin'
+    | '/simulador'
     | '/accept-invitation/$id'
     | '/dev/inbox'
     | '/dev/form'
     | '/dev/permissions'
     | '/dev/richtext-collab'
     | '/dev/tenants'
+    | '/pacientes/$patientId'
     | '/settings/members'
     | '/settings/org'
     | '/settings/teams'
@@ -156,6 +177,7 @@ export interface FileRouteTypes {
   to:
     | '/login'
     | '/admin'
+    | '/simulador'
     | '/accept-invitation/$id'
     | '/dev/inbox'
     | '/'
@@ -163,6 +185,7 @@ export interface FileRouteTypes {
     | '/dev/permissions'
     | '/dev/richtext-collab'
     | '/dev/tenants'
+    | '/pacientes/$patientId'
     | '/settings/members'
     | '/settings/org'
     | '/settings/teams'
@@ -171,6 +194,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/login'
     | '/_authenticated/admin'
+    | '/_authenticated/simulador'
     | '/accept-invitation/$id'
     | '/dev/inbox'
     | '/_authenticated/'
@@ -178,6 +202,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dev/permissions'
     | '/_authenticated/dev/richtext-collab'
     | '/_authenticated/dev/tenants'
+    | '/_authenticated/pacientes/$patientId'
     | '/_authenticated/settings/members'
     | '/_authenticated/settings/org'
     | '/_authenticated/settings/teams'
@@ -227,6 +252,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AcceptInvitationIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/simulador': {
+      id: '/_authenticated/simulador'
+      path: '/simulador'
+      fullPath: '/simulador'
+      preLoaderRoute: typeof AuthenticatedSimuladorRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin': {
       id: '/_authenticated/admin'
       path: '/admin'
@@ -253,6 +285,13 @@ declare module '@tanstack/react-router' {
       path: '/settings/members'
       fullPath: '/settings/members'
       preLoaderRoute: typeof AuthenticatedSettingsMembersRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/pacientes/$patientId': {
+      id: '/_authenticated/pacientes/$patientId'
+      path: '/pacientes/$patientId'
+      fullPath: '/pacientes/$patientId'
+      preLoaderRoute: typeof AuthenticatedPacientesPatientIdRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/dev/tenants': {
@@ -288,11 +327,13 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedSimuladorRoute: typeof AuthenticatedSimuladorRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedDevFormRoute: typeof AuthenticatedDevFormRoute
   AuthenticatedDevPermissionsRoute: typeof AuthenticatedDevPermissionsRoute
   AuthenticatedDevRichtextCollabRoute: typeof AuthenticatedDevRichtextCollabRoute
   AuthenticatedDevTenantsRoute: typeof AuthenticatedDevTenantsRoute
+  AuthenticatedPacientesPatientIdRoute: typeof AuthenticatedPacientesPatientIdRoute
   AuthenticatedSettingsMembersRoute: typeof AuthenticatedSettingsMembersRoute
   AuthenticatedSettingsOrgRoute: typeof AuthenticatedSettingsOrgRoute
   AuthenticatedSettingsTeamsRoute: typeof AuthenticatedSettingsTeamsRoute
@@ -300,11 +341,13 @@ interface AuthenticatedRouteChildren {
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedSimuladorRoute: AuthenticatedSimuladorRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedDevFormRoute: AuthenticatedDevFormRoute,
   AuthenticatedDevPermissionsRoute: AuthenticatedDevPermissionsRoute,
   AuthenticatedDevRichtextCollabRoute: AuthenticatedDevRichtextCollabRoute,
   AuthenticatedDevTenantsRoute: AuthenticatedDevTenantsRoute,
+  AuthenticatedPacientesPatientIdRoute: AuthenticatedPacientesPatientIdRoute,
   AuthenticatedSettingsMembersRoute: AuthenticatedSettingsMembersRoute,
   AuthenticatedSettingsOrgRoute: AuthenticatedSettingsOrgRoute,
   AuthenticatedSettingsTeamsRoute: AuthenticatedSettingsTeamsRoute,

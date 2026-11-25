@@ -38,7 +38,7 @@ export function AuthForm() {
     try {
       await signIn('google', { redirectTo: '/' });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to sign in with Google');
+      toast.error(error instanceof Error ? error.message : 'Não foi possível entrar com o Google');
       setIsLoading(false);
     }
   };
@@ -49,9 +49,11 @@ export function AuthForm() {
         <BloomaWordmark className="justify-center" />
         <div className="space-y-1 text-center">
           <CardTitle className="font-serif text-2xl font-semibold tracking-tight">
-            Sign in
+            Entrar
           </CardTitle>
-          <CardDescription>Continue with Google to access Instituto Blooma.</CardDescription>
+          <CardDescription>
+            Painel da equipe de psicologia. Acesso restrito a pessoas autorizadas.
+          </CardDescription>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -63,7 +65,7 @@ export function AuthForm() {
           data-testid="button-google-signin"
         >
           {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GoogleMark />}
-          Continue with Google
+          Entrar com Google
         </Button>
       </CardContent>
     </Card>

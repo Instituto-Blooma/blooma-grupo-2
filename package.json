@@ -33,7 +33,9 @@
     "check": "pnpm run format:check && pnpm run lint && pnpm run typecheck:all",
     "check:fix": "pnpm run format && pnpm run lint:fix && pnpm run check",
     "check:all": "pnpm run check:fix",
-    "seed:dev": "node script/seed.mjs dev"
+    "seed:dev": "node script/seed.mjs dev",
+    "seed:triagem": "npx convex run seed:triagem",
+    "test": "vitest run"
   },
   "dependencies": {
     "@auth/core": "^0.37.4",
@@ -57,10 +59,10 @@
     "@tanstack/react-form": "^1.33.0",
     "@tanstack/react-router": "^1.170.16",
     "@tanstack/react-router-devtools": "^1.167.0",
+    "adm-zip": "^0.5.16",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
-    "adm-zip": "^0.5.16",
     "convex": "^1.43.0",
     "date-fns": "^4.4.0",
     "imask": "7.6.1",
@@ -94,6 +96,7 @@
     "tailwindcss": "^3.4.17",
     "typescript": "~5.9.3",
     "vite": "^7.3.0",
+    "vitest": "3.2.4",
     "yaml": "^2.8.1"
   },
   "pnpm": {

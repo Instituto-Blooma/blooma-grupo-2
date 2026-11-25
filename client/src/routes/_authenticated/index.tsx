@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { Dashboard } from '@/components/dashboard';
+import { FilaPage } from '@/pages/fila';
 
 export const Route = createFileRoute('/_authenticated/')({
-  component: Dashboard,
+  component: FilaPage,
 });

@@ -1,3 +1,5 @@
+> **Triagem psicológica (grupo 2):** veja [TRIAGEM.md](./TRIAGEM.md) — como rodar, seed, simulador e TODOs.
+
 # Hackblooma
 
 Instituto Blooma product on the **convexplate** B2B foundation: **Organizations** with isolated data, **provisioned onboarding** (invite before sign-in), **org-scoped authorization**, and **Platform Admin** tooling.

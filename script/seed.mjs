@@ -12,8 +12,12 @@ function requireEnvLocal() {
 
 export function seedDevFixtures() {
   requireEnvLocal();
-  runConvex(`npx convex run testing/e2e:seedAdminUser '{"name":"Dev User"}'`, {
+  runConvex(`npx convex run testing/e2e:seedAdminUser "{\\"name\\":\\"Dev User\\"}"`, {
     logLabel: 'Seeding dev admin user...',
+  });
+  // Triagem: papel "psicologa" da conta demo + pacientes fictícias (só cria se não existir).
+  runConvex('npx convex run seed:ensureTriagem', {
+    logLabel: 'Seeding triagem (pacientes fictícias)...',
   });
 }
 

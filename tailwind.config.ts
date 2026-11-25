@@ -18,6 +18,19 @@ export default {
         sm: '0.5rem' /* 8px */,
       },
       colors: {
+        // Identidade da triagem (grupo 2)
+        tri: {
+          creme: '#FFF8E7',
+          azul: '#1B4765',
+          tinta: '#0A2436',
+          verde: '#32764C',
+          menta: '#C9F0D8',
+          lavanda: '#D9D9FF',
+          roxo: '#3F3FA6',
+          laranja: '#FF9C62',
+          ferrugem: '#AD531F',
+          celeste: '#64B4ED',
+        },
         // Flat / base colors (regular buttons)
         background: 'hsl(var(--background) / <alpha-value>)',
         foreground: 'hsl(var(--foreground) / <alpha-value>)',
