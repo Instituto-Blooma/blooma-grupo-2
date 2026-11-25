@@ -71,9 +71,7 @@ function CabecalhoFicha({ ficha, pacienteId }: { ficha: Ficha; pacienteId: Id<'p
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <h1 className="font-serif text-2xl font-semibold tracking-tight sm:text-3xl">
-          {nomeDaPaciente(linha)}
-        </h1>
+        <h1 className="font-serif text-3xl sm:text-4xl">{nomeDaPaciente(linha)}</h1>
         {linha.apelido && linha.nomeCompleto ? (
           <span className="text-muted-foreground">({linha.apelido})</span>
         ) : null}

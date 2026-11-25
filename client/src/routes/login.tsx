@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from '@tanstack/react-router';
 import { AuthForm } from '@/components/auth-form';
-import { BloomaDotField } from '@/components/blooma-brand';
+import { Creditos, FundoDodecagonos } from '@/components/olhar-humano-marca';
 import { validateLoginSearch } from '@/lib/route-guards';
 
 export const Route = createFileRoute('/login')({
@@ -15,13 +15,11 @@ export const Route = createFileRoute('/login')({
 
 function LoginPage() {
   return (
-    <div className="relative min-h-screen flex items-center justify-center p-4 overflow-hidden bg-background">
-      <BloomaDotField />
-      <div className="relative z-10 w-full space-y-6">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background p-4">
+      <FundoDodecagonos />
+      <div className="relative z-10 w-full max-w-md space-y-8">
         <AuthForm />
-        <p className="text-center font-serif text-sm text-muted-foreground">
-          Meninas fazendo o futuro
-        </p>
+        <Creditos />
       </div>
     </div>
   );

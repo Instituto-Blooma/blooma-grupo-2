@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useAuthActions } from '@convex-dev/auth/react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { BloomaWordmark } from '@/components/blooma-brand';
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
+import { OlharHumanoLogo } from '@/components/olhar-humano-marca';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 
@@ -48,19 +48,20 @@ export function AuthForm() {
   };
 
   return (
-    <Card className="w-full max-w-md mx-auto">
-      <CardHeader className="space-y-4">
-        <BloomaWordmark className="justify-center" />
-        <div className="space-y-1 text-center">
-          <CardTitle className="font-serif text-2xl font-semibold tracking-tight">Entrar</CardTitle>
-          <CardDescription>
-            Entre com o Google para acessar a triagem de psicologia.
+    <Card className="mx-auto w-full max-w-md shadow-md">
+      <CardHeader className="items-center space-y-5 pb-4 text-center">
+        <OlharHumanoLogo tamanho="grande" subtitulo />
+        <div className="space-y-2">
+          <h1 className="font-serif text-3xl">Entrar</h1>
+          <CardDescription className="text-base">
+            Área da equipe de psicologia do hospital. Use a conta Google que recebeu o convite.
           </CardDescription>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <Button
           type="button"
+          size="lg"
           className="w-full"
           onClick={handleGoogleSignIn}
           disabled={isLoading}
@@ -69,6 +70,9 @@ export function AuthForm() {
           {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <GoogleMark />}
           Entrar com o Google
         </Button>
+        <p className="text-center text-sm text-muted-foreground">
+          Ainda não tem acesso? Peça um convite à pessoa responsável pela equipe.
+        </p>
       </CardContent>
     </Card>
   );

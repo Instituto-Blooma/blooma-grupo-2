@@ -45,10 +45,10 @@ function Fila({ hospital }: { hospital: Hospital }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-serif text-2xl font-semibold tracking-tight sm:text-3xl">Fila</h1>
-        <p className="mt-1 text-muted-foreground">
-          Casos abertos de {hospital.nome}. Quem precisa mais aparece primeiro: urgente, alta e
-          moderada. Na mesma prioridade, quem espera há mais tempo vem antes.
+        <h1 className="font-serif text-3xl sm:text-4xl">Fila</h1>
+        <p className="mt-2 max-w-2xl text-muted-foreground">
+          Casos abertos, do mais urgente para o menos urgente. Na mesma prioridade, quem espera há
+          mais tempo vem antes.
         </p>
       </div>
 

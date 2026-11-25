@@ -30,12 +30,10 @@ function Pacientes({ hospital }: { hospital: Hospital }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-serif text-2xl font-semibold tracking-tight sm:text-3xl">
-          Todas as pacientes
-        </h1>
-        <p className="mt-1 text-muted-foreground">
-          Todas as pacientes de {hospital.nome}, as mais recentes primeiro. Abra uma para ver a
-          conversa e todos os check-ins.
+        <h1 className="font-serif text-3xl sm:text-4xl">Todas as pacientes</h1>
+        <p className="mt-2 max-w-2xl text-muted-foreground">
+          Todas as pacientes do hospital, as mais recentes primeiro. Abra uma para ver a conversa e
+          todos os check-ins.
         </p>
       </div>
       <div className="relative max-w-md">

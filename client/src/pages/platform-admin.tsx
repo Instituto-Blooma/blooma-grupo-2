@@ -4,7 +4,7 @@ import { useMutation, useQuery } from 'convex/react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BloomaWordmark } from '@/components/blooma-brand';
+import { OlharHumanoLogo } from '@/components/olhar-humano-marca';
 import { OrganizationContextControl } from '@/components/organization-context-control';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
 import { applyServerErrors, getSubmitErrorMessage, useAppForm } from '@/components/form';
@@ -208,9 +208,9 @@ export function PlatformAdminPage() {
       <header className="border-b">
         <div className="container flex items-center justify-between gap-4 px-4 py-4 md:px-6">
           <div className="space-y-2">
-            <BloomaWordmark compact />
+            <OlharHumanoLogo />
             <h1 className="font-serif text-xl font-semibold" data-testid="platform-admin-title">
-              Platform Admin
+              Administração da plataforma
             </h1>
             <p className="text-sm text-muted-foreground">{users?.email}</p>
           </div>
@@ -219,7 +219,7 @@ export function PlatformAdminPage() {
               <OrganizationContextControl isPlatformAdmin />
             </div>
             <Link to="/">
-              <Button variant="outline">Dashboard</Button>
+              <Button variant="outline">Fila</Button>
             </Link>
           </div>
         </div>

@@ -5,13 +5,13 @@ import { usePermission, useTenantsData } from '@djpanda/convex-tenants/react';
 import { useConvexAuth, useQuery } from 'convex/react';
 import { LogOut, User } from 'lucide-react';
 import { toast } from 'sonner';
-import { BloomaWordmark } from '@/components/blooma-brand';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
+import { Creditos, OlharHumanoLogo } from '@/components/olhar-humano-marca';
 import { OrganizationContextControl } from '@/components/organization-context-control';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,7 +26,7 @@ import { PerfilForm } from './perfil-form';
 
 export type Hospital = { organizationId: string; nome: string };
 
-type Secao = 'fila' | 'pacientes' | 'perfil';
+type Secao = 'fila' | 'pacientes' | 'perfil' | 'equipe';
 
 /**
  * Header, navigation and the checks every team page needs: signed in, member of a hospital and
@@ -57,25 +57,25 @@ export function AppShell({
     conteudo = <Aviso>Carregando...</Aviso>;
   } else if (!currentOrganization) {
     conteudo = ehAdminDaPlataforma ? (
-      <Aviso>
-        Conta de administração da plataforma. Use o{' '}
-        <Link to="/admin" className="underline">
+      <Recado titulo="Administração da plataforma">
+        Esta conta cria hospitais e convida pessoas. Use o{' '}
+        <Link to="/admin" className="font-medium text-primary underline underline-offset-4">
           painel de administração
-        </Link>{' '}
-        para criar hospitais e convidar pessoas.
-      </Aviso>
+        </Link>
+        .
+      </Recado>
     ) : (
-      <Aviso data-testid="waiting-for-invitation">
+      <Recado titulo="Aguardando convite" data-testid="waiting-for-invitation">
         {statusConvite?.status === 'invited'
           ? 'Seu convite está pronto. Entre com o Google usando o e-mail que recebeu o convite.'
-          : 'Você ainda não faz parte de nenhum hospital. Peça um convite para a pessoa responsável pela equipe.'}
-      </Aviso>
+          : 'Você ainda não faz parte da equipe de nenhum hospital. Peça um convite à pessoa responsável pela equipe e entre de novo com o mesmo e-mail.'}
+      </Recado>
     );
   } else if (perfil === null) {
     conteudo = (
       <Card className="mx-auto max-w-lg">
         <CardHeader>
-          <CardTitle>Antes de começar</CardTitle>
+          <h1 className="font-serif text-3xl">Antes de começar</h1>
           <CardDescription>
             Conte como você quer aparecer para as pacientes. Seu nome e sua função vão no começo de
             cada mensagem que você mandar pelo WhatsApp. Dá para mudar depois em &quot;Meu
@@ -104,12 +104,9 @@ export function AppShell({
         ehAdminDaPlataforma={Boolean(ehAdminDaPlataforma)}
         temPerfil={Boolean(perfil)}
       />
-      <main className="flex-1 container px-4 md:px-6 py-6 md:py-8">{conteudo}</main>
-      <footer className="border-t py-4">
-        <p className="container px-4 md:px-6 text-center text-sm text-muted-foreground">
-          Triagem de psicologia · Instituto Blooma. Esta triagem não é diagnóstico: quem cuida é
-          sempre a equipe.
-        </p>
+      <main className="container flex-1 px-4 py-6 md:px-6 md:py-10">{conteudo}</main>
+      <footer className="border-t py-5">
+        <Creditos className="container px-4 md:px-6" />
       </footer>
     </div>
   );
@@ -151,7 +148,10 @@ function Cabecalho({
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex min-h-14 flex-wrap items-center justify-between gap-2 px-4 py-2 md:px-6">
         <div className="flex items-center gap-3">
-          <BloomaWordmark compact />
+          <Link to="/" aria-label="Olhar Humano: ir para a fila">
+            <OlharHumanoLogo />
+          </Link>
+          {organizationId ? <span className="h-6 w-px bg-border" aria-hidden /> : null}
           <OrganizationContextControl isPlatformAdmin={ehAdminDaPlataforma} />
         </div>
         <nav className="flex flex-wrap items-center gap-1">
@@ -161,12 +161,12 @@ function Cabecalho({
                 Fila
               </ItemMenu>
               <ItemMenu para="/pacientes" ativo={secao === 'pacientes'}>
-                Todas as pacientes
+                Pacientes
               </ItemMenu>
             </>
           ) : null}
           {podeGerenciar.allowed ? (
-            <ItemMenu para="/settings/members" ativo={false}>
+            <ItemMenu para="/settings/members" ativo={secao === 'equipe'}>
               Equipe
             </ItemMenu>
           ) : null}
@@ -246,5 +246,25 @@ export function Aviso({ children, ...props }: { children: ReactNode; 'data-testi
     >
       {children}
     </div>
+  );
+}
+
+/** A short centered message with a title, for states like "waiting for an invitation". */
+function Recado({
+  titulo,
+  children,
+  ...props
+}: {
+  titulo: string;
+  children: ReactNode;
+  'data-testid'?: string;
+}) {
+  return (
+    <Card className="mx-auto max-w-lg text-center" {...props}>
+      <CardContent className="space-y-3 pt-8 pb-8">
+        <h1 className="font-serif text-3xl">{titulo}</h1>
+        <p className="text-muted-foreground">{children}</p>
+      </CardContent>
+    </Card>
   );
 }

@@ -91,7 +91,7 @@ Exemplo, se o número do robô fosse +55 11 99999-0000 e o código ACC: `https:/
 Para ver a Fila, as fichas, os alertas e os avisos com dados (por exemplo na versão de teste do Railway), com o WhatsApp **simulado**:
 
 ```bash
-pnpm run demo:pacientes                       # hospital "acme-corp" ou o único cadastrado
+pnpm run demo:pacientes                       # hospital A.C. Camargo ("ac-camargo") ou o único cadastrado
 pnpm run demo:pacientes -- --hospital <slug>  # outro hospital (o endereço curto dele)
 ```
 

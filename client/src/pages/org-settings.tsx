@@ -1,13 +1,7 @@
 import { Link } from '@tanstack/react-router';
-import {
-  MembersSection,
-  OrgSettingsPanel,
-  TeamsSection,
-  useTenantsData,
-} from '@djpanda/convex-tenants/react';
-import { BloomaWordmark } from '@/components/blooma-brand';
+import { MembersSection, OrgSettingsPanel, TeamsSection } from '@djpanda/convex-tenants/react';
+import { AppShell } from '@/components/equipe/app-shell';
 import { Button } from '@/components/ui/button';
-import { ImpersonationBanner } from '@/components/impersonation-banner';
 
 type SettingsSection = 'members' | 'teams' | 'org';
 
@@ -19,10 +13,10 @@ function SettingsNav({ section }: { section: SettingsSection }) {
   ];
 
   return (
-    <nav className="flex flex-wrap gap-2">
+    <nav className="flex flex-wrap gap-1 border-b pb-3" aria-label="Seções da equipe">
       {links.map((link) => (
         <Link key={link.id} to={link.to}>
-          <Button variant={section === link.id ? 'default' : 'outline'} size="sm">
+          <Button variant={section === link.id ? 'secondary' : 'ghost'} size="sm">
             {link.label}
           </Button>
         </Link>
@@ -32,47 +26,24 @@ function SettingsNav({ section }: { section: SettingsSection }) {
 }
 
 export function OrgSettingsPage({ section }: { section: SettingsSection }) {
-  const { currentOrganization, isLoading } = useTenantsData();
-
-  if (isLoading) {
-    return <div className="container p-8">Carregando as configurações do hospital...</div>;
-  }
-
-  if (!currentOrganization) {
-    return (
-      <div className="container p-8 space-y-4">
-        <p>Nenhum hospital selecionado.</p>
-        <Link to="/">
-          <Button variant="outline">Voltar para a fila</Button>
-        </Link>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen flex flex-col">
-      <ImpersonationBanner />
-      <header className="border-b">
-        <div className="container space-y-4 px-4 py-6 md:px-6">
-          <div className="flex items-center justify-between gap-4">
-            <div className="space-y-2">
-              <BloomaWordmark compact />
-              <h1 className="font-serif text-2xl font-semibold">{currentOrganization.name}</h1>
-              <p className="text-sm text-muted-foreground">Configurações do hospital</p>
-            </div>
-            <Link to="/">
-              <Button variant="outline">Fila</Button>
-            </Link>
+    <AppShell secao="equipe">
+      {(hospital) => (
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-3xl sm:text-4xl">Equipe</h1>
+            <p className="mt-1 text-muted-foreground">
+              Quem tem acesso às pacientes de {hospital.nome}. Convide as pessoas da equipe por
+              aqui.
+            </p>
           </div>
           <SettingsNav section={section} />
+          {section === 'members' ? <MembersSection /> : null}
+          {section === 'teams' ? <TeamsSection /> : null}
+          {section === 'org' ? <OrgSettingsPanel /> : null}
         </div>
-      </header>
-      <main className="container px-4 py-6 md:px-6">
-        {section === 'members' ? <MembersSection /> : null}
-        {section === 'teams' ? <TeamsSection /> : null}
-        {section === 'org' ? <OrgSettingsPanel /> : null}
-      </main>
-    </div>
+      )}
+    </AppShell>
   );
 }
 

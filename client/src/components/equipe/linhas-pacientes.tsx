@@ -58,7 +58,7 @@ export function LinhasPacientes({
               ) : null}
               <div className="min-w-0 flex-1 space-y-1.5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">{nomeDaPaciente(linha)}</span>
+                  <span className="font-semibold">{nomeDaPaciente(linha)}</span>
                   {linha.apelido && linha.nomeCompleto ? (
                     <span className="text-sm text-muted-foreground">({linha.apelido})</span>
                   ) : null}

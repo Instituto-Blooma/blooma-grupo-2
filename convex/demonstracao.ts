@@ -2,7 +2,7 @@
  * Fictional patients so the team site can be seen with data on a test deployment (for example
  * the Railway preview of a pull request). Only works while WhatsApp is simulated.
  *
- *   pnpm run demo:pacientes                      # hospital "acme-corp" or the only one registered
+ *   pnpm run demo:pacientes                      # hospital "ac-camargo" (A.C. Camargo) or the only one registered
  *   pnpm run demo:pacientes -- --hospital <slug> # another hospital (organization slug)
  *
  * Running it again recreates the same fictional patients. `pnpm run dados:apagar-teste` removes
@@ -23,7 +23,9 @@ import { tenantsClient } from './lib/tenantsClient';
 import { MENSAGEM_CRISE } from './pacientes';
 import { colocarNaFila, mensagemFinalDoCheckin, textoDaPergunta } from './triagem';
 
-const SLUG_PADRAO = 'acme-corp';
+/** First-setup hospital (convex/testing/e2e.ts); older local setups still have "acme-corp". */
+const SLUGS_PADRAO = ['ac-camargo', 'acme-corp'];
+const CODIGO_DO_HOSPITAL = 'ACC';
 const DIA = 24 * 60 * 60 * 1000;
 const LOTE = 500;
 
@@ -164,13 +166,13 @@ async function escolherHospital(ctx: MutationCtx, slug: string | undefined) {
     const unico = await tenantsClient.getOrganization(ctx, cadastrados[0].organizationId);
     if (unico) return unico;
   }
-  const padrao = await tenantsClient.getOrganizationBySlug(ctx, SLUG_PADRAO);
-  if (!padrao) {
-    throw new ConvexError(
-      'Não sei em qual hospital criar as pacientes. Rode de novo com --hospital <endereço do hospital>.'
-    );
+  for (const padrao of SLUGS_PADRAO) {
+    const hospital = await tenantsClient.getOrganizationBySlug(ctx, padrao);
+    if (hospital) return hospital;
   }
-  return padrao;
+  throw new ConvexError(
+    'Não sei em qual hospital criar as pacientes. Rode de novo com --hospital <endereço do hospital>.'
+  );
 }
 
 /** Hospital code, consent term, risk words and scale: created only when missing. */
@@ -182,9 +184,11 @@ async function prepararConfiguracao(ctx: MutationCtx, organizationId: string, ag
   if (!codigo) {
     const teste = await ctx.db
       .query('hospitais')
-      .withIndex('by_codigo', (q) => q.eq('codigo', 'TESTE'))
+      .withIndex('by_codigo', (q) => q.eq('codigo', CODIGO_DO_HOSPITAL))
       .unique();
-    if (!teste) await ctx.db.insert('hospitais', { organizationId, codigo: 'TESTE' });
+    if (!teste) {
+      await ctx.db.insert('hospitais', { organizationId, codigo: CODIGO_DO_HOSPITAL });
+    }
   }
 
   let termo = await ctx.db

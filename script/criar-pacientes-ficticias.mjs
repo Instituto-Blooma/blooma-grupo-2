@@ -1,7 +1,7 @@
 // Fills the team site with fictional patients (queue, alerts, notices, check-ins, conversations)
 // on the Convex deployment in .env.local. Refuses when the real WhatsApp is configured.
 //
-//   pnpm run demo:pacientes                       # hospital "acme-corp" or the only one registered
+//   pnpm run demo:pacientes                       # hospital "ac-camargo" (A.C. Camargo) or the only one registered
 //   pnpm run demo:pacientes -- --hospital <slug>  # another hospital (its address/slug)
 //
 // Running it again recreates the same patients. To remove everything: pnpm run dados:apagar-teste

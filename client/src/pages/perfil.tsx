@@ -1,7 +1,7 @@
 import { useQuery } from 'convex/react';
 import { AppShell } from '@/components/equipe/app-shell';
 import { PerfilForm } from '@/components/equipe/perfil-form';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { api } from '../../../convex/_generated/api';
 
 export function PerfilPage() {
@@ -14,7 +14,7 @@ function Perfil() {
   return (
     <Card className="mx-auto max-w-lg">
       <CardHeader>
-        <CardTitle>Meu perfil</CardTitle>
+        <h1 className="font-serif text-3xl">Meu perfil</h1>
         <CardDescription>
           Seu nome e sua função vão no começo de cada mensagem que você manda para as pacientes.
         </CardDescription>

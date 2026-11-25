@@ -1,9 +1,8 @@
-import { Link, useNavigate, useParams } from '@tanstack/react-router';
+import { useNavigate, useParams } from '@tanstack/react-router';
 import { AcceptInvitation, useAcceptInvitation } from '@djpanda/convex-tenants/react';
 import { Authenticated, Unauthenticated, useConvexAuth } from 'convex/react';
 import { AuthForm } from '@/components/auth-form';
-import { BloomaDotField } from '@/components/blooma-brand';
-import { Button } from '@/components/ui/button';
+import { Creditos, FundoDodecagonos, OlharHumanoLogo } from '@/components/olhar-humano-marca';
 import { api } from '../../../convex/_generated/api';
 
 function AcceptInvitationContent() {
@@ -18,7 +17,13 @@ function AcceptInvitationContent() {
   });
 
   return (
-    <div className="container max-w-lg space-y-4 px-4 py-10">
+    <div className="mx-auto w-full max-w-md space-y-4 py-6">
+      <div className="space-y-3 text-center">
+        <h1 className="font-serif text-3xl">Você recebeu um convite</h1>
+        <p className="text-muted-foreground">
+          Aceite para entrar na equipe de psicologia do hospital no Olhar Humano.
+        </p>
+      </div>
       <AcceptInvitation
         invitation={acceptState.invitation ?? null}
         organizationName={acceptState.organizationName}
@@ -42,12 +47,9 @@ function AcceptInvitationContent() {
           void navigate({ to: '/' });
         }}
       />
-      <div className="text-sm text-muted-foreground" data-testid="accept-invitation-status">
-        {acceptState.isLoading ? 'Carregando o convite...' : (acceptState.error ?? 'Pronto')}
-      </div>
-      <Link to="/login">
-        <Button data-testid="button-go-to-login">Ir para a tela de entrada</Button>
-      </Link>
+      {acceptState.isLoading ? (
+        <p className="text-center text-sm text-muted-foreground">Carregando o convite...</p>
+      ) : null}
     </div>
   );
 }
@@ -56,16 +58,24 @@ export function AcceptInvitationPage() {
   return (
     <>
       <Unauthenticated>
-        <div className="relative min-h-screen flex items-center justify-center overflow-hidden p-4">
-          <BloomaDotField />
+        <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4">
+          <FundoDodecagonos />
           <div className="relative z-10 w-full max-w-md space-y-6">
             <AcceptInvitationContent />
             <AuthForm />
+            <Creditos />
           </div>
         </div>
       </Unauthenticated>
       <Authenticated>
-        <AcceptInvitationContent />
+        <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4">
+          <FundoDodecagonos />
+          <div className="relative z-10 w-full max-w-md space-y-6">
+            <OlharHumanoLogo className="justify-center" tamanho="grande" subtitulo />
+            <AcceptInvitationContent />
+            <Creditos />
+          </div>
+        </div>
       </Authenticated>
     </>
   );

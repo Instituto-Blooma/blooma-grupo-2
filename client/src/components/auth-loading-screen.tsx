@@ -1,4 +1,4 @@
-import { BloomaWordmark } from '@/components/blooma-brand';
+import { OlharHumanoLogo } from '@/components/olhar-humano-marca';
 
 export function AuthLoadingScreen() {
   return (
@@ -7,7 +7,8 @@ export function AuthLoadingScreen() {
       data-testid="auth-loading"
       aria-busy="true"
     >
-      <BloomaWordmark compact />
+      <OlharHumanoLogo tamanho="grande" />
+      <p className="text-sm text-muted-foreground">Carregando...</p>
     </div>
   );
 }

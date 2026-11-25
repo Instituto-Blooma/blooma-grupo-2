@@ -243,9 +243,9 @@ async function ensureInvitationWithEmail(
   return invitation;
 }
 
-export const FIRST_SETUP_ORG_NAME = 'Acme Corp';
-export const FIRST_SETUP_ORG_SLUG = 'acme-corp';
-export const FIRST_SETUP_TODO_ALPHA = 'Welcome to Acme Corp';
+export const FIRST_SETUP_ORG_NAME = 'A.C. Camargo';
+export const FIRST_SETUP_ORG_SLUG = 'ac-camargo';
+export const FIRST_SETUP_TODO_ALPHA = 'Welcome to A.C. Camargo';
 export const FIRST_SETUP_TODO_BETA = 'Try creating a todo';
 
 const FIRST_SETUP_USERS = [
