@@ -10,7 +10,7 @@ A equipe do hospital entra pelo convite (organização = hospital) e vê só as 
 
 **Entrar:** com e-mail e senha. No primeiro acesso, a pessoa usa o e-mail do convite, cria uma senha e confirma com um código de 6 números enviado por e-mail; "Esqueci minha senha" também usa um código. Só e-mails convidados conseguem criar a senha. Em desenvolvimento e na versão de teste do Railway, os e-mails ficam em `/dev/inbox`. Em produção, é preciso configurar `RESEND_API_KEY` e `RESEND_FROM` (um remetente de um domínio verificado no Resend).
 
-**Logo:** a opção "Abraço" de [design/logo-opcoes.html](./design/logo-opcoes.html). A versão final é um arquivo só, [`client/public/logo.svg`](./client/public/logo.svg), igual em todo lugar (inclusive no tema escuro): o site mostra esse arquivo, e os ícones da aba (`favicon.png`, `favicon-staging.png`, `favicon-pr.png`) e a imagem dos e-mails (`logo-email.png`) são gerados a partir dele, em 256×256. Os e-mails mostram a imagem quando `SITE_URL` está configurado no Convex.
+**Logo:** a opção "Abraço" de [design/logo-opcoes.html](./design/logo-opcoes.html). A versão final é um arquivo só, [`client/public/logo.svg`](./client/public/logo.svg), igual em todo lugar (inclusive no tema escuro), com quadrado lavanda #E5E5FF, braços azul-marinho #1B4765 e roxo #3F3FA6 e pupila laranja #AD531F: o site mostra esse arquivo, e os ícones da aba (`favicon.png`, `favicon-staging.png`, `favicon-pr.png`) e a imagem dos e-mails (`logo-email.png`) são gerados a partir dele, em 256×256. Os e-mails mostram a imagem quando `SITE_URL` está configurado no Convex.
 
 O menu fica num painel lateral: Fila, Sinal de risco, Robô não entendeu, Avisos, Pacientes, Equipe, Configurações e Meu perfil.
 

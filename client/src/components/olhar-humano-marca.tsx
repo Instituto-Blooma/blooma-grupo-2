@@ -9,7 +9,7 @@ function dodecagono(cx: number, cy: number, raio: number) {
 }
 
 /**
- * Symbol "Abraço" (two open arms as eyelids around an orange pupil, on a creme square).
+ * Symbol "Abraço" (two open arms as eyelids around an orange pupil, on a lavender square).
  * It is always the same file, client/public/logo.svg, with the same colors on light and dark
  * screens; the tab icons and the e-mail image are rendered from that file too.
  */
