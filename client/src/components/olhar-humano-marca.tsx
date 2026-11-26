@@ -9,34 +9,12 @@ function dodecagono(cx: number, cy: number, raio: number) {
 }
 
 /**
- * Symbol "Abraço": the two eyelids are two open arms that do not close, around an orange pupil.
- * The upper arm uses the text color (navy on light backgrounds, creme on dark ones).
- * Same drawing as design/logo-opcoes.html (option 1) and the tab icons in client/public.
+ * Symbol "Abraço" (two open arms as eyelids around an orange pupil, on a creme square).
+ * It is always the same file, client/public/logo.svg, with the same colors on light and dark
+ * screens; the tab icons and the e-mail image are rendered from that file too.
  */
 export function OlharHumanoSimbolo({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 64 64"
-      className={cn('shrink-0 text-marca-titulo dark:text-marca-creme', className)}
-      aria-hidden="true"
-    >
-      <path
-        d="M7 33C15 17 49 17 57 33"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="6.5"
-        strokeLinecap="round"
-      />
-      <path
-        d="M13 39C21 52 43 52 51 39"
-        fill="none"
-        stroke="#32764C"
-        strokeWidth="6.5"
-        strokeLinecap="round"
-      />
-      <circle cx="32" cy="34" r="7.5" fill="#FF9C62" />
-    </svg>
-  );
+  return <img src="/logo.svg" alt="" aria-hidden="true" className={cn('shrink-0', className)} />;
 }
 
 /** Symbol + name. `subtitulo` adds "Triagem de psicologia" under the name. */
