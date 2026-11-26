@@ -8,20 +8,33 @@ function dodecagono(cx: number, cy: number, raio: number) {
   }).join(' ');
 }
 
-/** Symbol: an eye whose iris is a dodecagon. */
+/**
+ * Symbol "Abraço": the two eyelids are two open arms that do not close, around an orange pupil.
+ * The upper arm uses the text color (navy on light backgrounds, creme on dark ones).
+ * Same drawing as design/logo-opcoes.html (option 1) and the tab icons in client/public.
+ */
 export function OlharHumanoSimbolo({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 48 48" className={cn('shrink-0', className)} aria-hidden="true">
+    <svg
+      viewBox="0 0 64 64"
+      className={cn('shrink-0 text-marca-titulo dark:text-marca-creme', className)}
+      aria-hidden="true"
+    >
       <path
-        d="M3 24C9.5 13.5 16.5 9 24 9s14.5 4.5 21 15c-6.5 10.5-13.5 15-21 15S9.5 34.5 3 24Z"
-        fill="#E8F4FC"
-        stroke="#2C6A96"
-        strokeWidth="3"
-        strokeLinejoin="round"
+        d="M7 33C15 17 49 17 57 33"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="6.5"
+        strokeLinecap="round"
       />
-      <polygon points={dodecagono(24, 24, 10)} fill="#D9D9FF" stroke="#3F3FA6" strokeWidth="1.5" />
-      <circle cx="24" cy="24" r="4.2" fill="#1B4765" />
-      <circle cx="26" cy="21.8" r="1.4" fill="#FFF8E7" />
+      <path
+        d="M13 39C21 52 43 52 51 39"
+        fill="none"
+        stroke="#32764C"
+        strokeWidth="6.5"
+        strokeLinecap="round"
+      />
+      <circle cx="32" cy="34" r="7.5" fill="#FF9C62" />
     </svg>
   );
 }

@@ -3,6 +3,7 @@
  * the e-mail on the first access and to reset a forgotten password.
  */
 import { Email } from '@convex-dev/auth/providers/Email';
+import { cabecalhoDoEmail } from './emailMarca';
 
 const VALIDADE_MINUTOS = 15;
 
@@ -35,7 +36,7 @@ async function enviarCodigo(email: string, codigo: string, motivo: 'confirmar' |
       from,
       to: [email],
       subject: assunto,
-      html: `<p>${escaparHtml(explicacao)}</p><p style="font-size:28px;font-weight:bold;letter-spacing:6px">${codigo}</p><p>O código vale por ${VALIDADE_MINUTOS} minutos. Se você não pediu, ignore este e-mail.</p>`,
+      html: `${cabecalhoDoEmail()}<p>${escaparHtml(explicacao)}</p><p style="font-size:28px;font-weight:bold;letter-spacing:6px">${codigo}</p><p>O código vale por ${VALIDADE_MINUTOS} minutos. Se você não pediu, ignore este e-mail.</p>`,
     }),
   });
   if (!resposta.ok) {

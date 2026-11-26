@@ -2,6 +2,7 @@
 
 import { v } from 'convex/values';
 import { internalAction } from './_generated/server';
+import { cabecalhoDoEmail } from './lib/emailMarca';
 
 function escaparHtml(texto: string) {
   return texto.replace(/[&<>"']/g, (letra) => `&#${letra.charCodeAt(0)};`);
@@ -21,7 +22,7 @@ async function sendEmail(args: { email: string; organizationName: string; accept
       from,
       to: [args.email],
       subject: `Convite para a equipe do ${args.organizationName} no Olhar Humano`,
-      html: `<p>Você foi convidada para a equipe de psicologia do <strong>${escaparHtml(args.organizationName)}</strong> no Olhar Humano.</p><p><a href="${args.acceptUrl}">Aceitar o convite</a></p><p>No primeiro acesso, use este e-mail e crie uma senha.</p>`,
+      html: `${cabecalhoDoEmail()}<p>Você foi convidada para a equipe de psicologia do <strong>${escaparHtml(args.organizationName)}</strong> no Olhar Humano.</p><p><a href="${args.acceptUrl}">Aceitar o convite</a></p><p>No primeiro acesso, use este e-mail e crie uma senha.</p>`,
     }),
   });
   if (!response.ok) {

@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Olhar Humano · opções de logo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Gloock&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --verde: #32764c;
+        --marinho: #0a2436;
+        --creme: #fff8e7;
+        --lavanda: #d9d9ff;
+        --menta: #c9f0d8;
+        --laranja: #ff9c62;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: 'DM Sans', system-ui, sans-serif;
+        background: #fff;
+        color: var(--marinho);
+      }
+      header {
+        padding: 40px 48px 8px;
+      }
+      h1 {
+        font-family: Gloock, Georgia, serif;
+        font-weight: 400;
+        font-size: 40px;
+        margin: 0 0 8px;
+      }
+      header p {
+        margin: 0;
+        max-width: 760px;
+        color: #4a6178;
+        line-height: 1.5;
+      }
+      .opcoes {
+        display: grid;
+        gap: 32px;
+        padding: 32px 48px 64px;
+      }
+      .opcao {
+        border: 1px solid #e2dccb;
+        border-radius: 16px;
+        overflow: hidden;
+      }
+      .titulo {
+        padding: 20px 24px 4px;
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+      }
+      .titulo h2 {
+        font-family: Gloock, Georgia, serif;
+        font-weight: 400;
+        font-size: 26px;
+        margin: 0;
+      }
+      .titulo span {
+        font-size: 13px;
+        font-weight: 600;
+        color: #fff;
+        background: var(--verde);
+        border-radius: 999px;
+        padding: 2px 10px;
+      }
+      .ideia {
+        padding: 0 24px 16px;
+        color: #4a6178;
+        margin: 0;
+      }
+      .faixa {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+      .lado {
+        padding: 28px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+      .claro {
+        background: var(--creme);
+        color: var(--marinho);
+      }
+      .escuro {
+        background: var(--marinho);
+        color: var(--creme);
+      }
+      .linha {
+        display: flex;
+        align-items: center;
+        gap: 28px;
+        flex-wrap: wrap;
+      }
+      .grande svg {
+        width: 140px;
+        height: 140px;
+        display: block;
+      }
+      .pequenos {
+        display: flex;
+        align-items: flex-end;
+        gap: 18px;
+      }
+      .pequenos figure {
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        opacity: 0.8;
+      }
+      .aba {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(127, 127, 127, 0.18);
+        border-radius: 8px 8px 0 0;
+        padding: 6px 12px;
+        font-size: 12px;
+      }
+      .marca {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .marca svg {
+        width: 44px;
+        height: 44px;
+      }
+      .marca b {
+        font-family: Gloock, Georgia, serif;
+        font-weight: 400;
+        font-size: 30px;
+        letter-spacing: -0.01em;
+      }
+      .rotulo {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        opacity: 0.7;
+      }
+      footer {
+        padding: 0 48px 48px;
+        color: #4a6178;
+        font-size: 14px;
+      }
+      @media (max-width: 760px) {
+        .faixa {
+          grid-template-columns: 1fr;
+        }
+        header,
+        .opcoes,
+        footer {
+          padding-left: 16px;
+          padding-right: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Olhar Humano · 4 opções de logo</h1>
+      <p>
+        Cada opção aparece grande, pequena (32 e 16 pixels, como no ícone da aba do navegador), em
+        fundo claro e escuro, e com o nome ao lado. Cores do Grupo 2: verde #32764C, azul-marinho
+        #0A2436, creme #FFF8E7, lavanda #D9D9FF, menta #C9F0D8 e laranja #FF9C62. Nada no site foi
+        trocado ainda.
+      </p>
+    </header>
+    <main class="opcoes" id="opcoes"></main>
+    <footer>
+      Todas as formas foram desenhadas do zero para o Olhar Humano. Antes de usar a escolhida como
+      marca oficial, vale fazer uma busca rápida no INPI para confirmar que não existe uma marca
+      registrada parecida.
+    </footer>
+
+    <script>
+      // `tinta` is the main line color: navy on light backgrounds, creme on dark ones.
+      const LOGOS = [
+        {
+          nome: 'Abraço',
+          ideia:
+            'As duas pálpebras são dois braços abertos que não se fecham: um olhar atento que também acolhe, com a pupila laranja de calor humano no centro.',
+          svg: (tinta) => `<svg viewBox="0 0 64 64" role="img" aria-label="Logo Abraço">
+        <path d="M7 33C15 17 49 17 57 33" fill="none" stroke="${tinta}" stroke-width="6.5" stroke-linecap="round"/>
+        <path d="M13 39C21 52 43 52 51 39" fill="none" stroke="#32764C" stroke-width="6.5" stroke-linecap="round"/>
+        <circle cx="32" cy="34" r="7.5" fill="#FF9C62"/>
+      </svg>`,
+        },
+        {
+          nome: 'Flor de doze pétalas',
+          ideia:
+            'O dodecágono do Grupo 2 vira uma flor de doze pétalas que se abre ao redor de uma pupila: cuidar é ver a pessoa florescer, mesmo no tratamento.',
+          svg: (tinta) => {
+            const petalas = Array.from(
+              { length: 12 },
+              (_, i) =>
+                `<ellipse cx="32" cy="13.5" rx="4.6" ry="9" transform="rotate(${i * 30} 32 32)" fill="${i % 2 ? '#C9F0D8' : '#D9D9FF'}"/>`
+            ).join('');
+            return `<svg viewBox="0 0 64 64" role="img" aria-label="Logo Flor de doze pétalas">${petalas}
+          <circle cx="32" cy="32" r="10" fill="${tinta}"/>
+          <circle cx="35.5" cy="28.5" r="2.6" fill="#FF9C62"/>
+        </svg>`;
+          },
+        },
+        {
+          nome: 'Janela',
+          ideia:
+            'Um dodecágono verde sólido com um olho aberto em recorte: o serviço é uma janela pela qual a equipe enxerga quem precisa de ajuda, e o ícone continua forte até no tamanho da aba.',
+          svg: (tinta, fundo) => {
+            const pontos = Array.from({ length: 12 }, (_, i) => {
+              const a = (Math.PI / 6) * i + Math.PI / 12;
+              return `${(32 + 30 * Math.cos(a)).toFixed(2)},${(32 + 30 * Math.sin(a)).toFixed(2)}`;
+            }).join(' ');
+            return `<svg viewBox="0 0 64 64" role="img" aria-label="Logo Janela">
+          <polygon points="${pontos}" fill="#32764C" stroke="#32764C" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M11 32C18 20 46 20 53 32C46 44 18 44 11 32Z" fill="${fundo}"/>
+          <circle cx="32" cy="32" r="8" fill="#FF9C62"/>
+          <circle cx="32" cy="32" r="3.4" fill="#0A2436"/>
+        </svg>`;
+          },
+        },
+        {
+          nome: 'Coração que olha',
+          ideia:
+            'Um traço só desenha um coração que, no meio, tem uma pupila: o olhar da equipe nasce do cuidado, não do protocolo.',
+          svg: (tinta) => `<svg viewBox="0 0 64 64" role="img" aria-label="Logo Coração que olha">
+        <path d="M32 54C13 42 7 31 9.5 22.5C12 14 22 11 28 16.5C30 18.3 31.2 20 32 21.6C32.8 20 34 18.3 36 16.5C42 11 52 14 54.5 22.5C57 31 51 42 32 54Z"
+          fill="#D9D9FF" stroke="${tinta}" stroke-width="4.5" stroke-linejoin="round"/>
+        <path d="M20 32.5C25 26.5 39 26.5 44 32.5C39 38.5 25 38.5 20 32.5Z" fill="#FFF8E7" stroke="${tinta}" stroke-width="3" stroke-linejoin="round"/>
+        <circle cx="32" cy="32.5" r="4.2" fill="#FF9C62"/>
+      </svg>`,
+        },
+      ];
+
+      const lado = (logo, escuro) => {
+        const tinta = escuro ? '#FFF8E7' : '#0A2436';
+        const fundo = escuro ? '#0A2436' : '#FFF8E7';
+        const svg = logo.svg(tinta, fundo);
+        return `<div class="lado ${escuro ? 'escuro' : 'claro'}">
+      <span class="rotulo">${escuro ? 'Fundo escuro' : 'Fundo claro'}</span>
+      <div class="linha">
+        <div class="grande">${svg}</div>
+        <div class="pequenos">
+          <figure><div style="width:32px;height:32px">${svg.replace('<svg ', '<svg width="32" height="32" ')}</div>32 px</figure>
+          <figure><div style="width:16px;height:16px">${svg.replace('<svg ', '<svg width="16" height="16" ')}</div>16 px</figure>
+        </div>
+      </div>
+      <div class="aba">${svg.replace('<svg ', '<svg width="16" height="16" ')}<span>Olhar Humano</span></div>
+      <div class="marca">${svg}<b>Olhar Humano</b></div>
+    </div>`;
+      };
+
+      document.getElementById('opcoes').innerHTML = LOGOS.map(
+        (logo, i) => `
+    <section class="opcao">
+      <div class="titulo"><span>Opção ${i + 1}</span><h2>${logo.nome}</h2></div>
+      <p class="ideia">${logo.ideia}</p>
+      <div class="faixa">${lado(logo, false)}${lado(logo, true)}</div>
+    </section>`
+      ).join('');
+    </script>
+  </body>
+</html>

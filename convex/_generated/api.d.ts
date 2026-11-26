@@ -24,6 +24,7 @@ import type * as lib_auth from "../lib/auth.js";
 import type * as lib_codigoPorEmail from "../lib/codigoPorEmail.js";
 import type * as lib_collabAccess from "../lib/collabAccess.js";
 import type * as lib_collabIds from "../lib/collabIds.js";
+import type * as lib_emailMarca from "../lib/emailMarca.js";
 import type * as lib_escala from "../lib/escala.js";
 import type * as lib_forms from "../lib/forms.js";
 import type * as lib_googleProvider from "../lib/googleProvider.js";
@@ -68,6 +69,7 @@ declare const fullApi: ApiFromModules<{
   "lib/codigoPorEmail": typeof lib_codigoPorEmail;
   "lib/collabAccess": typeof lib_collabAccess;
   "lib/collabIds": typeof lib_collabIds;
+  "lib/emailMarca": typeof lib_emailMarca;
   "lib/escala": typeof lib_escala;
   "lib/forms": typeof lib_forms;
   "lib/googleProvider": typeof lib_googleProvider;
