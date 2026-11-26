@@ -25,7 +25,7 @@ Regras em [`convex/pacientes.ts`](../../convex/pacientes.ts), nesta ordem para c
 
 1. **Palavras de risco** (lista editável, tabela `palavrasDeRisco`): se a mensagem tiver uma delas, o robô manda a mensagem fixa com o CVV (188) e o SAMU (192), e o hospital recebe um alerta só com telefone e horário. O texto não é guardado antes do aceite. Se ela ainda não escolheu o hospital, o alerta aparece para o hospital que ela escolher.
 2. **"apagar meus dados"**: o robô confirma o recebimento e o pedido aparece para a equipe do hospital dela (`listarPedidosDeExclusao`), que confirma no site (`apagarDadosDaPaciente`). Isso apaga o cadastro, as mensagens, os alertas e os registros do canal; fica só um registro mínimo (`exclusoesRealizadas`: hospital, quem apagou e quando).
-3. **Hospital**: se a mensagem tiver o código de um hospital ("Oi ACC"), ela fica ligada a ele. Sem código: com um hospital só cadastrado, ela é ligada a ele; com mais de um, o robô pergunta "Em qual hospital você faz tratamento?".
+3. **Hospital**: se a mensagem tiver o código de um hospital como palavra separada ("Oi, sou uma paciente do ACC"), ela fica ligada a ele. Sem código: com um hospital só cadastrado, ela é ligada a ele; com mais de um, o robô pergunta "Em qual hospital você faz tratamento?".
 4. **Termo**: antes do aceite, nenhum texto é guardado. O robô manda o termo com "Aceito" e "Não aceito". Sem termo publicado, nada é guardado. Se o termo mudar de versão, o robô pede o aceite de novo.
 5. **Histórico**: depois do aceite, toda mensagem que entra e sai vai para `mensagensConversa` (paciente, robô ou profissional).
 
@@ -81,10 +81,10 @@ Esses comandos usam aspas simples, que funcionam no Git Bash, no macOS e no Linu
 O link abre o WhatsApp com a mensagem já escrita. Formato:
 
 ```
-https://wa.me/<número do robô só com dígitos>?text=Oi%20<CÓDIGO>
+https://wa.me/<número do robô só com dígitos>?text=Oi%2C%20sou%20uma%20paciente%20do%20<CÓDIGO>
 ```
 
-Exemplo, se o número do robô fosse +55 11 99999-0000 e o código ACC: `https://wa.me/5511999990000?text=Oi%20ACC`. O `%20` é o espaço. Esse link pode virar QR code em qualquer gerador de QR. O número é o que a Meta der para a conta do WhatsApp Business.
+Exemplo, se o número do robô fosse +55 11 99999-0000 e o código ACC: `https://wa.me/5511999990000?text=Oi%2C%20sou%20uma%20paciente%20do%20ACC`. O `%2C` é a vírgula e o `%20` é o espaço. A mensagem vem de `mensagemDoLink` em `convex/pacientes.ts`. Um código não pode ser uma palavra da própria mensagem (por exemplo "DO" ou "OI"). Esse link pode virar QR code em qualquer gerador de QR. O número é o que a Meta der para a conta do WhatsApp Business.
 
 ### Pacientes fictícias para ver o site
 

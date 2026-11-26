@@ -345,7 +345,7 @@ function Configuracoes({ hospital }: { hospital: Hospital }) {
           ) : dados.codigoWhatsApp ? (
             <>
               <Linha nome="Código do hospital">{dados.codigoWhatsApp}</Linha>
-              <Linha nome="Mensagem do link ou QR code">Oi {dados.codigoWhatsApp}</Linha>
+              <Linha nome="Mensagem do link ou QR code">{dados.mensagemDoLink}</Linha>
               <p className="text-muted-foreground">
                 Quem manda essa mensagem fica ligada a este hospital.
               </p>

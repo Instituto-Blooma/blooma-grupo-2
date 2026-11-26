@@ -34,6 +34,17 @@ export const OPCAO_TERMO_ACEITO = 'termo_aceito';
 export const OPCAO_TERMO_RECUSADO = 'termo_recusado';
 const PREFIXO_OPCAO_HOSPITAL = 'hospital:';
 
+/**
+ * Ready-made message of the hospital's wa.me link / QR code. The code must stay a separate word:
+ * that is how the first message links the patient to the hospital (identificarHospital).
+ */
+export function mensagemDoLink(codigo: string) {
+  return `Oi, sou uma paciente do ${codigo}`;
+}
+
+/** Words of the link message itself can never be a hospital code (they are in every message). */
+const PALAVRAS_DA_MENSAGEM_DO_LINK = new Set(normalizarTexto(mensagemDoLink('')).split(' '));
+
 export const MENSAGEM_CRISE =
   'Se você está em perigo ou pensando em tirar a própria vida, procure ajuda agora: ligue 188 (CVV, gratuito, 24 horas) ou 192 (SAMU). Você não precisa passar por isso sem ajuda.';
 const MENSAGEM_RECUSA =
@@ -180,7 +191,7 @@ async function identificarHospital(
     return null;
   }
 
-  // A known code anywhere in the message ("Oi ACC").
+  // A known code anywhere in the message, as a whole word ("Oi, sou uma paciente do ACC").
   const palavras = new Set(textoNormalizado.split(' '));
   const porCodigo = hospitais.find((hospital) => palavras.has(normalizarTexto(hospital.codigo)));
   if (porCodigo) return porCodigo.organizationId;
@@ -518,6 +529,11 @@ export const definirCodigoDoHospital = internalMutation({
     if (!/^[A-Z0-9]{2,10}$/.test(codigo)) {
       throw new ConvexError('O código deve ter de 2 a 10 letras ou números, sem espaços.');
     }
+    if (PALAVRAS_DA_MENSAGEM_DO_LINK.has(normalizarTexto(codigo))) {
+      throw new ConvexError(
+        `O código ${codigo} é uma palavra da mensagem do link ("${mensagemDoLink('ACC')}"). Escolha outro.`
+      );
+    }
     if (!(await tenantsClient.getOrganization(ctx, args.organizationId))) {
       throw new ConvexError('Hospital (organização) não encontrado.');
     }
@@ -559,7 +575,7 @@ export const listarHospitais = internalQuery({
         organizationId: hospital.organizationId,
         nome: await nomeDoHospital(ctx, hospital),
         codigo: hospital.codigo,
-        mensagemDoLink: `Oi ${hospital.codigo}`,
+        mensagemDoLink: mensagemDoLink(hospital.codigo),
       }))
     );
   },

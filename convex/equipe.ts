@@ -17,6 +17,7 @@ import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/s
 import { requireUserId } from './lib/auth';
 import { ORDEM_PRIORIDADE, ORDEM_SEM_PRIORIDADE } from './lib/escala';
 import {
+  mensagemDoLink,
   requireAcessoAPaciente,
   requireMembroDoHospital,
   temConsentimentoAtual,
@@ -569,6 +570,7 @@ export const configuracoes = query({
     ]);
     return {
       codigoWhatsApp: hospital?.codigo ?? null,
+      mensagemDoLink: hospital ? mensagemDoLink(hospital.codigo) : null,
       escala: escala
         ? {
             nome: escala.nome,
