@@ -58,7 +58,7 @@ export const ROTULO_SITUACAO: Record<SituacaoCaso, string> = {
 };
 
 export const ROTULO_ALERTA: Record<TipoAlerta, string> = {
-  resposta_de_risco: 'Resposta de risco no check-in',
+  resposta_de_risco: 'Pergunta 9 do PHQ-9: resposta de risco',
   palavra_de_risco: 'Escreveu uma palavra de risco',
   robo_nao_entendeu: 'O robô não entendeu as respostas',
 };

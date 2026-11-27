@@ -486,7 +486,17 @@ async function criarTriagem(
     ultimaPrioridade: prioridade,
     ultimasNotas: { dt: resultados.dt, gad7: resultados.gad7, phq9: resultados.phq9 },
   });
-  if (prioridade === 'baixa') {
+  if (resultados.riscoPhq9) {
+    // Same as the bot: alert on the record and urgent case with the risk flag.
+    await ctx.db.insert('alertasPaciente', {
+      pacienteId: dados.pacienteId,
+      organizationId: dados.organizationId,
+      tipo: 'resposta_de_risco',
+      checkinId: id,
+      criadoEm: momento,
+    });
+    await colocarNaFila(ctx, dados.pacienteId, 'urgente', 'risco');
+  } else if (prioridade === 'baixa') {
     await ctx.db.insert('avisosEquipe', {
       organizationId: dados.organizationId,
       pacienteId: dados.pacienteId,

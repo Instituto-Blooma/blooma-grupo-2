@@ -524,6 +524,13 @@ async function avancar(
       return;
     }
   }
+  // End of the PHQ-9 with a risk answer on question 9: the team is alerted and the case becomes
+  // urgent right now; the patient gets CVV 188 / SAMU 192 in the same message as what follows.
+  const fimDoPhq9 = etapaAtual?.escala === 'phq9' && proximaEtapa?.escala !== 'phq9';
+  const riscoPhq9 = fimDoPhq9 && respostas.some((r) => r.escala === 'phq9' && r.risco === true);
+  if (riscoPhq9) {
+    await alertarRiscoPhq9(ctx, paciente, checkin);
+  }
   if (proxima < protocolo.etapas.length) {
     await ctx.db.patch('checkins', checkin._id, {
       respostas,
@@ -531,10 +538,34 @@ async function avancar(
       selecaoPendente: undefined,
       tentativasInvalidas: 0,
     });
-    await enviarEtapa(ctx, paciente.telefone, protocolo, proxima, configuracao);
+    await enviarEtapa(
+      ctx,
+      paciente.telefone,
+      protocolo,
+      proxima,
+      configuracao,
+      riscoPhq9 ? MENSAGEM_CRISE : undefined
+    );
     return;
   }
+  // Last step: the closing message carries CVV 188 / SAMU 192 after a risk answer.
   await concluirTriagem(ctx, paciente, checkin, respostas, configuracao, false);
+}
+
+/** PHQ-9 question 9 above "Nenhuma vez": alert on the record and urgent case in the queue. */
+async function alertarRiscoPhq9(
+  ctx: MutationCtx,
+  paciente: Doc<'pacientes'>,
+  checkin: Doc<'checkins'>
+) {
+  await ctx.db.insert('alertasPaciente', {
+    pacienteId: paciente._id,
+    organizationId: checkin.organizationId,
+    tipo: 'resposta_de_risco',
+    checkinId: checkin._id,
+    criadoEm: Date.now(),
+  });
+  await colocarNaFila(ctx, paciente._id, 'urgente', 'risco');
 }
 
 async function concluirTriagem(
