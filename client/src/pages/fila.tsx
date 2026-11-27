@@ -119,7 +119,7 @@ function AlertasDaFila({
         <button
           type="button"
           onClick={() => aoEscolher('risco')}
-          className="flex items-start gap-3 rounded-lg border-2 border-marca-laranja-base bg-marca-laranja-claro p-4 text-left text-marca-titulo hover:border-marca-laranja-escuro focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex items-start gap-3 rounded-lg border-2 border-pessego bg-pessego p-4 text-left text-laranja-escuro hover:border-laranja-escuro focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
           <span>
@@ -140,7 +140,7 @@ function AlertasDaFila({
         <button
           type="button"
           onClick={() => aoEscolher('nao_entendeu')}
-          className="flex items-start gap-3 rounded-lg border-2 border-marca-azul-base bg-marca-azul-claro p-4 text-left text-marca-titulo hover:border-marca-azul-escuro focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex items-start gap-3 rounded-lg border-2 border-azul-clarinho bg-azul-clarinho p-4 text-left text-azul-profundo hover:border-azul-medio focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <HelpCircle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
           <span>

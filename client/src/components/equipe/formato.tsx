@@ -9,19 +9,19 @@ export type TipoAlerta = 'resposta_de_risco' | 'palavra_de_risco' | 'robo_nao_en
 const PRIORIDADES: Record<Prioridade, { rotulo: string; classe: string }> = {
   urgente: {
     rotulo: 'Urgente',
-    classe: 'bg-marca-laranja-escuro text-white border-marca-laranja-escuro',
+    classe: 'bg-pessego text-laranja-escuro border-laranja-claro',
   },
   alta: {
     rotulo: 'Alta',
-    classe: 'bg-marca-laranja-base text-marca-titulo border-marca-laranja-base',
+    classe: 'bg-lavanda-clara text-roxo-escuro border-lavanda-clara',
   },
   moderada: {
     rotulo: 'Moderada',
-    classe: 'bg-marca-lavanda-base text-marca-marinho border-marca-lavanda-base',
+    classe: 'bg-white text-roxo-escuro border-lavanda',
   },
   baixa: {
     rotulo: 'Baixa',
-    classe: 'bg-marca-menta-base text-marca-marinho border-marca-menta-base',
+    classe: 'bg-azul-clarinho text-azul-profundo border-azul-clarinho',
   },
 };
 
@@ -37,7 +37,7 @@ export function SeloPrioridade({ prioridade }: { prioridade: Prioridade | null }
     ? PRIORIDADES[prioridade]
     : {
         rotulo: 'Sem pontuação',
-        classe: 'bg-marca-borda text-marca-secundario border-marca-borda',
+        classe: 'bg-white text-azul-medio border-azul-clarinho',
       };
   return (
     <span
@@ -76,8 +76,8 @@ export function categoriaDoAlerta(tipo: TipoAlerta): CategoriaAlerta {
 }
 
 export const CLASSE_CATEGORIA: Record<CategoriaAlerta, string> = {
-  risco: 'border-marca-laranja-base bg-marca-laranja-claro text-marca-laranja-escuro',
-  nao_entendeu: 'border-marca-azul-base bg-marca-azul-claro text-marca-azul-escuro',
+  risco: 'border-pessego bg-pessego text-laranja-escuro',
+  nao_entendeu: 'border-azul-clarinho bg-azul-clarinho text-azul-profundo',
 };
 
 /** With `tipo`, shows the detail ("Resposta de risco no check-in"); else the category name. */

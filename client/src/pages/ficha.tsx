@@ -133,6 +133,7 @@ function BotoesDoCaso({ ficha, pacienteId }: { ficha: Ficha; pacienteId: Id<'pac
     <div className="flex flex-wrap gap-2">
       {podeAssumir ? (
         <Button
+          variant="principal"
           onClick={() => executar(() => assumir({ pacienteId }), 'Você assumiu o caso.')}
           disabled={ocupado}
         >
@@ -169,9 +170,14 @@ function PedidoDeExclusao({ ficha, pacienteId }: { ficha: Ficha; pacienteId: Id<
     }
   };
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border-2 border-marca-laranja-base bg-marca-laranja-claro p-4 text-sm text-marca-titulo">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border-2 border-pessego bg-pessego p-4 text-sm text-laranja-escuro">
       <p>Ela pediu pelo WhatsApp para apagar os dados.</p>
-      <Button variant="destructive" size="sm" onClick={confirmar}>
+      <Button
+        variant="outline"
+        size="sm"
+        className="border-laranja-escuro text-laranja-escuro hover:bg-pessego hover:text-laranja-escuro"
+        onClick={confirmar}
+      >
         Apagar os dados dela
       </Button>
     </div>
@@ -199,7 +205,7 @@ function AlertasCard({ ficha }: { ficha: Ficha }) {
       </CardHeader>
       <CardContent className="space-y-5">
         <section className="space-y-2">
-          <h3 className="flex items-center gap-2 text-base font-semibold text-marca-laranja-escuro dark:text-marca-laranja-base">
+          <h3 className="flex items-center gap-2 text-base font-semibold text-laranja-escuro dark:text-laranja-claro">
             <AlertTriangle className="h-4 w-4" aria-hidden />
             Sinais de risco
           </h3>
@@ -217,7 +223,7 @@ function AlertasCard({ ficha }: { ficha: Ficha }) {
           )}
         </section>
         <section className="space-y-2">
-          <h3 className="flex items-center gap-2 text-base font-semibold text-marca-azul-escuro dark:text-marca-azul-base">
+          <h3 className="flex items-center gap-2 text-base font-semibold text-azul-profundo dark:text-azul-clarinho">
             <HelpCircle className="h-4 w-4" aria-hidden />
             Respostas que o robô não entendeu
           </h3>
@@ -330,7 +336,7 @@ function CheckinItem({ checkin }: { checkin: Checkin }) {
         </div>
       </div>
       {checkin.escalaExemplo ? (
-        <p className="rounded-md bg-marca-lavanda-claro px-3 py-2 text-xs text-marca-lavanda-escuro">
+        <p className="rounded-md bg-lavanda-clara px-3 py-2 text-xs text-roxo-escuro">
           Escala de EXEMPLO, ainda não validada pela equipe de psicologia. Use a pontuação só como
           teste.
         </p>
@@ -344,7 +350,7 @@ function CheckinItem({ checkin }: { checkin: Checkin }) {
               key={resposta.perguntaId}
               className={cn(
                 'flex items-start justify-between gap-3 rounded-md px-2 py-1',
-                resposta.risco && 'bg-marca-laranja-claro text-marca-marinho'
+                resposta.risco && 'bg-pessego text-laranja-escuro'
               )}
             >
               <span>
@@ -353,7 +359,7 @@ function CheckinItem({ checkin }: { checkin: Checkin }) {
                 <br />
                 <span className="font-medium">{resposta.opcaoTitulo}</span>
                 {resposta.risco ? (
-                  <span className="ml-2 text-xs font-semibold text-marca-laranja-escuro">
+                  <span className="ml-2 text-xs font-semibold text-laranja-escuro">
                     resposta de risco
                   </span>
                 ) : null}

@@ -284,7 +284,13 @@ function BotaoEnviar({
   children: ReactNode;
 }) {
   return (
-    <Button type="submit" size="lg" className="w-full" disabled={enviando || desligado}>
+    <Button
+      type="submit"
+      variant="principal"
+      size="lg"
+      className="w-full"
+      disabled={enviando || desligado}
+    >
       {enviando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : null}
       {children}
     </Button>
@@ -365,7 +371,7 @@ function BotaoLink({ onClick, children }: { onClick: () => void; children: React
     <button
       type="button"
       onClick={onClick}
-      className="font-medium text-primary underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none"
+      className="font-medium text-link underline-offset-4 hover:underline focus-visible:underline focus-visible:outline-none"
     >
       {children}
     </button>

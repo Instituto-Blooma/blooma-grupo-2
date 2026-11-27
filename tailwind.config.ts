@@ -82,18 +82,30 @@ export default {
           foreground: 'hsl(var(--sidebar-accent-foreground) / <alpha-value>)',
           border: 'var(--sidebar-accent-border)',
         },
-        // Grupo 2 palette (claro = fundo, base = identidade, escuro = texto/botão).
-        marca: {
-          azul: { claro: '#E8F4FC', base: '#64B4ED', escuro: '#2C6A96' },
-          lavanda: { claro: '#E5E5FF', base: '#D9D9FF', escuro: '#3F3FA6' },
-          laranja: { claro: '#FFEFE5', base: '#FF9C62', escuro: '#AD531F' },
-          menta: { claro: '#EBF9F1', base: '#C9F0D8', escuro: '#32764C' },
-          creme: '#FFF8E7',
-          borda: '#E2DCCB',
-          secundario: '#4A6178',
-          marinho: '#1B4765',
-          titulo: '#0A2436',
+        // Olhar Humano palette (client/src/index.css). Use these names, never loose hex colors.
+        azul: {
+          DEFAULT: 'hsl(var(--azul) / <alpha-value>)',
+          clarinho: 'hsl(var(--azul-clarinho) / <alpha-value>)',
+          medio: 'hsl(var(--azul-medio) / <alpha-value>)',
+          profundo: 'hsl(var(--azul-profundo) / <alpha-value>)',
         },
+        lavanda: {
+          DEFAULT: 'hsl(var(--lavanda) / <alpha-value>)',
+          clara: 'hsl(var(--lavanda-clara) / <alpha-value>)',
+        },
+        roxo: {
+          DEFAULT: 'hsl(var(--roxo) / <alpha-value>)',
+          escuro: 'hsl(var(--roxo-escuro) / <alpha-value>)',
+        },
+        laranja: {
+          DEFAULT: 'hsl(var(--laranja) / <alpha-value>)',
+          claro: 'hsl(var(--laranja-claro) / <alpha-value>)',
+          escuro: 'hsl(var(--laranja-escuro) / <alpha-value>)',
+        },
+        pessego: 'hsl(var(--pessego) / <alpha-value>)',
+        titulo: 'hsl(var(--titulo) / <alpha-value>)',
+        subtitulo: 'hsl(var(--subtitulo) / <alpha-value>)',
+        link: 'hsl(var(--link) / <alpha-value>)',
         status: {
           online: 'rgb(34 197 94)',
           away: 'rgb(245 158 11)',

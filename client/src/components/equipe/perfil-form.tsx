@@ -65,7 +65,7 @@ export function PerfilForm({
           {primeiroNome} ({funcao.trim() || 'psicóloga'}):
         </span>
       </p>
-      <Button type="submit" disabled={salvando}>
+      <Button type="submit" variant="principal" disabled={salvando}>
         {salvando ? 'Salvando...' : 'Salvar'}
       </Button>
     </form>

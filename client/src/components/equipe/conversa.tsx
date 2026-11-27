@@ -42,7 +42,7 @@ export function Conversa({
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        <div className="max-h-[32rem] space-y-3 overflow-y-auto rounded-lg bg-muted/40 p-3">
+        <div className="max-h-[32rem] space-y-3 overflow-y-auto rounded-lg border bg-background p-3">
           {status === 'CanLoadMore' || status === 'LoadingMore' ? (
             <div className="text-center">
               <Button
@@ -116,19 +116,17 @@ function Balao({ mensagem, nomeDaPaciente }: { mensagem: Mensagem; nomeDaPacient
         className={cn(
           'max-w-[85%] rounded-lg px-3 py-2 text-sm shadow-sm',
           daPaciente
-            ? 'border border-marca-borda bg-white text-marca-marinho'
+            ? 'border border-azul-clarinho bg-white text-azul'
             : mensagem.remetente === 'robo'
-              ? 'bg-marca-azul-claro text-marca-marinho'
-              : 'bg-marca-menta-claro text-marca-marinho'
+              ? 'bg-azul-clarinho text-azul-profundo'
+              : 'bg-lavanda-clara text-roxo-escuro'
         )}
       >
-        <p className="mb-0.5 text-xs font-semibold text-marca-secundario">{autor}</p>
+        <p className="mb-0.5 text-xs font-semibold opacity-80">{autor}</p>
         <p className="whitespace-pre-wrap break-words">
           <TextoWhatsApp texto={corpo} />
         </p>
-        <p className="mt-1 text-right text-[11px] text-marca-secundario">
-          {dataHora(mensagem.enviadaEm)}
-        </p>
+        <p className="mt-1 text-right text-[11px] opacity-75">{dataHora(mensagem.enviadaEm)}</p>
       </div>
     </div>
   );

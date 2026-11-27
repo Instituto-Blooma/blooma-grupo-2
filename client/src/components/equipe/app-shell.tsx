@@ -76,7 +76,7 @@ export function AppShell({
     conteudo = ehAdminDaPlataforma ? (
       <Recado titulo="Administração da plataforma">
         Esta conta cria hospitais e convida pessoas. Use o{' '}
-        <Link to="/admin" className="font-medium text-primary underline underline-offset-4">
+        <Link to="/admin" className="font-medium text-link underline underline-offset-4">
           painel de administração
         </Link>
         .
@@ -120,7 +120,7 @@ export function AppShell({
         {/* Side panel: fixed on large screens, a drawer on phones. */}
         <aside
           className={cn(
-            'fixed inset-y-0 left-0 z-50 w-72 border-r bg-background transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0',
+            'fixed inset-y-0 left-0 z-50 w-72 border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0',
             menuAberto ? 'translate-x-0 shadow-xl' : '-translate-x-full'
           )}
           aria-label="Menu principal"
@@ -138,7 +138,7 @@ export function AppShell({
           <button
             type="button"
             aria-label="Fechar o menu"
-            className="fixed inset-0 z-40 bg-marca-titulo/30 lg:hidden"
+            className="fixed inset-0 z-40 bg-azul-profundo/40 lg:hidden"
             onClick={() => setMenuAberto(false)}
           />
         ) : null}
@@ -205,19 +205,19 @@ function PainelLateral({
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between gap-2 px-5 pt-5">
         <Link to="/" onClick={aoNavegar} aria-label="Olhar Humano: ir para a fila">
-          <OlharHumanoLogo />
+          <OlharHumanoLogo sobreEscuro />
         </Link>
         <Button
           variant="ghost"
           size="icon"
-          className="lg:hidden"
+          className="text-azul-clarinho hover:bg-azul hover:text-white lg:hidden"
           aria-label="Fechar o menu"
           onClick={aoFechar}
         >
           <X className="h-5 w-5" />
         </Button>
       </div>
-      <div className="px-5 pb-4 pt-2">
+      <div className="px-5 pb-4 pt-2 [&_span]:text-lavanda">
         <OrganizationContextControl isPlatformAdmin={ehAdminDaPlataforma} />
       </div>
 
@@ -310,24 +310,28 @@ function PainelLateral({
           <button
             type="button"
             onClick={sair}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-azul-clarinho hover:bg-azul hover:text-white"
           >
-            <LogOut className="h-4 w-4" aria-hidden />
+            <LogOut className="h-4 w-4 text-lavanda" aria-hidden />
             Sair
           </button>
         </Grupo>
       </nav>
 
-      <div className="flex items-center gap-3 border-t px-5 py-4">
+      <div className="flex items-center gap-3 border-t border-sidebar-border px-5 py-4">
         <Avatar className="h-9 w-9">
           <AvatarImage src={usuario?.image ?? undefined} />
-          <AvatarFallback className="bg-secondary">{nome.charAt(0).toUpperCase()}</AvatarFallback>
+          <AvatarFallback className="bg-lavanda text-azul-profundo">
+            {nome.charAt(0).toUpperCase()}
+          </AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{nome}</p>
-          <p className="truncate text-xs text-muted-foreground">{usuario?.email ?? ''}</p>
+          <p className="truncate text-sm font-medium text-white">{nome}</p>
+          <p className="truncate text-xs text-lavanda">{usuario?.email ?? ''}</p>
         </div>
-        <ThemeToggle />
+        <div className="text-azul-clarinho [&_button:hover]:bg-azul [&_button:hover]:text-white">
+          <ThemeToggle />
+        </div>
       </div>
     </div>
   );
@@ -336,18 +340,16 @@ function PainelLateral({
 function Grupo({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (
     <div className="space-y-1">
-      <p className="px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-        {titulo}
-      </p>
+      <p className="px-3 text-xs font-semibold uppercase tracking-wider text-lavanda">{titulo}</p>
       {children}
     </div>
   );
 }
 
 const TONS = {
-  risco: 'bg-marca-laranja-escuro text-white',
-  robo: 'bg-marca-azul-escuro text-white',
-  aviso: 'bg-marca-menta-escuro text-white',
+  risco: 'bg-laranja-claro text-azul-profundo',
+  robo: 'bg-azul-clarinho text-azul-profundo',
+  aviso: 'bg-lavanda text-roxo-escuro',
 } as const;
 
 function Item({
@@ -377,12 +379,10 @@ function Item({
       aria-current={ativo ? 'page' : undefined}
       className={cn(
         'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-        ativo
-          ? 'bg-secondary text-secondary-foreground'
-          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+        ativo ? 'bg-azul text-white' : 'text-azul-clarinho hover:bg-azul/60 hover:text-white'
       )}
     >
-      <Icone className="h-4 w-4 shrink-0" aria-hidden />
+      <Icone className="h-4 w-4 shrink-0 text-lavanda" aria-hidden />
       <span className="flex-1">{children}</span>
       {contagem && tom ? (
         <span

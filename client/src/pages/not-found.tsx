@@ -14,7 +14,7 @@ export default function NotFound() {
             <h1 className="font-serif text-3xl">Página não encontrada</h1>
             <p className="text-muted-foreground">Este endereço não existe ou foi mudado.</p>
             <Link to="/">
-              <Button>Ir para a fila</Button>
+              <Button variant="principal">Ir para a fila</Button>
             </Link>
           </CardContent>
         </Card>

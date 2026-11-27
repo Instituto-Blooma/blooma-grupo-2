@@ -4,49 +4,70 @@
 
 /* LIGHT MODE */
 :root {
+  /*
+   * Olhar Humano palette (60-30-10). Only these colors are used on the site; every other
+   * variable below points at one of them.
+   *   60% azul-marinho: titles, main text, site base.
+   *   30% lavanda: highlights and details, icons on blue.
+   *   10% laranja: only the essential (main button, urgent).
+   * Blocks, alerts and tags: light shade as background + dark shade of the SAME color as text.
+   */
+  --azul: 204.3 57.8% 25.1%; /* #1B4765 */
+  --azul-clarinho: 204.7 39.5% 91.6%; /* #E1EBF2 block background */
+  --azul-medio: 205.3 30.2% 41.6%; /* #4A6F8A secondary text */
+  --azul-profundo: 204.3 61% 15.1%; /* #0F2B3E side panel */
+  --lavanda: 240 69.7% 87.1%; /* #C7C7F5 */
+  --lavanda-clara: 240 100% 94.9%; /* #E5E5FF block background */
+  --roxo: 240 45% 44.9%; /* #3F3FA6 subtitles and links */
+  --roxo-escuro: 240 48% 33.9%; /* #2D2D80 text on lavanda-clara */
+  --laranja: 22 69.6% 40%; /* #AD531F main button, urgent */
+  --pessego: 24 83.3% 90.6%; /* #FBE3D3 alert background */
+  --laranja-claro: 22.2 100% 69.2%; /* #FF9C62 orange on blue */
+  --laranja-escuro: 22 70.6% 28%; /* #7A3A15 text on pessego, main button hover */
+  --branco: 0 0% 100%; /* #FFFFFF site background */
   --button-outline: rgba(0, 0, 0, 0.1);
   --badge-outline: rgba(0, 0, 0, 0.05);
   --opaque-button-border-intensity: -8;
   --elevate-1: rgba(0, 0, 0, 0.03);
   --elevate-2: rgba(0, 0, 0, 0.08);
-  /* Olhar Humano — Grupo 2 palette */
-  --titulo: 205 69% 13%;
+  --titulo: var(--azul);
   --font-subtitulo: 'Lora', Georgia, serif;
-  /* White page and cards (default); creme #FFF8E7 stays for small highlights. */
-  --background: 0 0% 100%;
-  --foreground: 204 58% 25%;
-  --border: 45 28% 84%;
-  --card: 0 0% 100%;
-  --card-foreground: 204 58% 25%;
-  --card-border: 45 28% 84%;
-  --sidebar: 240 100% 95%;
-  --sidebar-foreground: 204 58% 25%;
-  --sidebar-border: 45 28% 84%;
-  --sidebar-primary: 205 55% 38%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 240 100% 93%;
-  --sidebar-accent-foreground: 204 58% 25%;
-  --sidebar-ring: 205 55% 38%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 204 58% 25%;
-  --popover-border: 45 28% 84%;
-  --primary: 205 55% 38%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 240 100% 93%;
-  --secondary-foreground: 204 58% 25%;
-  --muted: 240 100% 95%;
-  --muted-foreground: 210 24% 38%;
-  --accent: 204 77% 95%;
-  --accent-foreground: 204 58% 25%;
-  --destructive: 22 70% 40%;
-  --destructive-foreground: 0 0% 100%;
-  --input: 45 18% 70%;
-  --ring: 205 55% 38%;
-  --chart-1: 206 79% 66%;
-  --chart-2: 240 100% 93%;
-  --chart-3: 22 100% 69%;
-  --chart-4: 143 59% 87%;
-  --chart-5: 205 55% 38%;
+  --subtitulo: var(--roxo);
+  --link: var(--roxo);
+  --background: var(--branco);
+  --foreground: var(--azul);
+  --border: var(--azul-clarinho);
+  --card: var(--branco);
+  --card-foreground: var(--azul);
+  --card-border: var(--azul-clarinho);
+  --sidebar: var(--azul-profundo);
+  --sidebar-foreground: var(--azul-clarinho);
+  --sidebar-border: var(--azul);
+  --sidebar-primary: var(--lavanda);
+  --sidebar-primary-foreground: var(--azul-profundo);
+  --sidebar-accent: var(--azul);
+  --sidebar-accent-foreground: var(--branco);
+  --sidebar-ring: var(--lavanda);
+  --popover: var(--branco);
+  --popover-foreground: var(--azul);
+  --popover-border: var(--azul-clarinho);
+  --primary: var(--azul);
+  --primary-foreground: var(--branco);
+  --secondary: var(--lavanda-clara);
+  --secondary-foreground: var(--roxo-escuro);
+  --muted: var(--azul-clarinho);
+  --muted-foreground: var(--azul-medio);
+  --accent: var(--azul-clarinho);
+  --accent-foreground: var(--azul-profundo);
+  --destructive: var(--laranja-escuro);
+  --destructive-foreground: var(--branco);
+  --input: var(--azul-medio);
+  --ring: var(--roxo);
+  --chart-1: var(--azul);
+  --chart-2: var(--lavanda);
+  --chart-3: var(--laranja);
+  --chart-4: var(--azul-medio);
+  --chart-5: var(--roxo);
   --font-sans: 'DM Sans', system-ui, sans-serif;
   --font-serif: 'Gloock', Georgia, serif;
   --font-mono: 'IBM Plex Mono', Menlo, monospace;
@@ -111,41 +132,43 @@
   --opaque-button-border-intensity: 9;
   --elevate-1: rgba(255, 255, 255, 0.04);
   --elevate-2: rgba(255, 255, 255, 0.09);
-  --titulo: 43 100% 97%;
-  --background: 205 69% 9%;
-  --foreground: 43 100% 95%;
-  --border: 205 35% 22%;
-  --card: 205 60% 13%;
-  --card-foreground: 43 100% 95%;
-  --card-border: 205 35% 20%;
-  --sidebar: 205 60% 12%;
-  --sidebar-foreground: 43 100% 95%;
-  --sidebar-border: 205 35% 20%;
-  --sidebar-primary: 206 79% 66%;
-  --sidebar-primary-foreground: 205 69% 13%;
-  --sidebar-accent: 240 45% 30%;
-  --sidebar-accent-foreground: 43 100% 95%;
-  --sidebar-ring: 206 79% 66%;
-  --popover: 205 60% 14%;
-  --popover-foreground: 43 100% 95%;
-  --popover-border: 205 35% 22%;
-  --primary: 206 79% 66%;
-  --primary-foreground: 205 69% 13%;
-  --secondary: 240 45% 32%;
-  --secondary-foreground: 43 100% 95%;
-  --muted: 205 40% 17%;
-  --muted-foreground: 45 28% 80%;
-  --accent: 205 40% 22%;
-  --accent-foreground: 43 100% 95%;
-  --destructive: 22 100% 69%;
-  --destructive-foreground: 205 69% 13%;
-  --input: 205 30% 32%;
-  --ring: 206 79% 66%;
-  --chart-1: 239 86% 70%;
-  --chart-2: 50 100% 70%;
-  --chart-3: 130 45% 58%;
-  --chart-4: 262 30% 64%;
-  --chart-5: 191 50% 64%;
+  --titulo: var(--branco);
+  --subtitulo: var(--lavanda);
+  --link: var(--lavanda);
+  --background: var(--azul-profundo);
+  --foreground: var(--azul-clarinho);
+  --border: var(--azul);
+  --card: var(--azul-profundo);
+  --card-foreground: var(--azul-clarinho);
+  --card-border: var(--azul);
+  --sidebar: var(--azul-profundo);
+  --sidebar-foreground: var(--azul-clarinho);
+  --sidebar-border: var(--azul);
+  --sidebar-primary: var(--lavanda);
+  --sidebar-primary-foreground: var(--azul-profundo);
+  --sidebar-accent: var(--azul);
+  --sidebar-accent-foreground: var(--branco);
+  --sidebar-ring: var(--lavanda);
+  --popover: var(--azul-profundo);
+  --popover-foreground: var(--azul-clarinho);
+  --popover-border: var(--azul);
+  --primary: var(--lavanda);
+  --primary-foreground: var(--azul-profundo);
+  --secondary: var(--roxo-escuro);
+  --secondary-foreground: var(--lavanda-clara);
+  --muted: var(--azul);
+  --muted-foreground: var(--lavanda);
+  --accent: var(--azul);
+  --accent-foreground: var(--branco);
+  --destructive: var(--laranja-claro);
+  --destructive-foreground: var(--azul-profundo);
+  --input: var(--azul-medio);
+  --ring: var(--lavanda);
+  --chart-1: var(--lavanda);
+  --chart-2: var(--azul-clarinho);
+  --chart-3: var(--laranja-claro);
+  --chart-4: var(--azul-medio);
+  --chart-5: var(--lavanda-clara);
   --shadow-2xs: 0px 2px 0px 0px hsl(0 0% 0% / 0);
   --shadow-xs: 0px 2px 0px 0px hsl(0 0% 0% / 0);
   --shadow-sm: 0px 2px 0px 0px hsl(0 0% 0% / 0), 0px 1px 2px -1px hsl(0 0% 0% / 0);
@@ -214,9 +237,11 @@
     letter-spacing: -0.01em;
   }
 
+  /* Subtitles in roxo (lavanda in the dark theme). */
   h2,
   h3 {
     font-family: var(--font-subtitulo);
+    color: hsl(var(--subtitulo));
     letter-spacing: -0.01em;
   }
 

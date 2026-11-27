@@ -40,7 +40,7 @@ function Convite({ podeResponder }: { podeResponder: boolean }) {
       <div className="space-y-4">
         <p>Pronto! Agora você faz parte da equipe do {hospital}.</p>
         <Link to="/">
-          <Button>Ir para a fila</Button>
+          <Button variant="principal">Ir para a fila</Button>
         </Link>
       </div>
     );
@@ -64,7 +64,11 @@ function Convite({ podeResponder }: { podeResponder: boolean }) {
         </div>
         {podeResponder ? (
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => void estado.acceptInvitation()} disabled={estado.isAccepting}>
+            <Button
+              variant="principal"
+              onClick={() => void estado.acceptInvitation()}
+              disabled={estado.isAccepting}
+            >
               {estado.isAccepting ? 'Aceitando...' : 'Aceitar o convite'}
             </Button>
             <Button

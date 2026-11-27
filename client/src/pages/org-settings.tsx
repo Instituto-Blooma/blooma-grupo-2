@@ -236,7 +236,7 @@ function Convidar({ hospital }: { hospital: Hospital }) {
               <option value="admin">{ROTULO_PAPEL.admin}</option>
             </select>
           </div>
-          <Button type="submit" className="w-full" disabled={enviando}>
+          <Button type="submit" variant="principal" className="w-full" disabled={enviando}>
             {enviando ? 'Enviando...' : 'Enviar convite'}
           </Button>
         </form>
@@ -371,7 +371,7 @@ function Configuracoes({ hospital }: { hospital: Hospital }) {
               </Linha>
               <Linha nome="Baixa">abaixo disso (só aviso, sem caso)</Linha>
               {dados.escala.exemplo ? (
-                <p className="rounded-md bg-marca-lavanda-claro px-3 py-2 text-marca-lavanda-escuro">
+                <p className="rounded-md bg-lavanda-clara px-3 py-2 text-roxo-escuro">
                   Esta é a escala de EXEMPLO. Troque pela escala escolhida pelas psicólogas.
                 </p>
               ) : null}
@@ -437,6 +437,7 @@ function NomeDoHospital({ hospital }: { hospital: Hospital }) {
             />
             <Button
               type="submit"
+              variant="principal"
               disabled={salvando || !nome.trim() || nome.trim() === hospital.nome}
             >
               Salvar

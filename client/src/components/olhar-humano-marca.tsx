@@ -22,10 +22,13 @@ export function OlharHumanoLogo({
   className,
   tamanho = 'compacto',
   subtitulo = false,
+  sobreEscuro = false,
 }: {
   className?: string;
   tamanho?: 'compacto' | 'grande';
   subtitulo?: boolean;
+  /** On the deep-blue side panel: white name, lavender subtitle. */
+  sobreEscuro?: boolean;
 }) {
   const grande = tamanho === 'grande';
   return (
@@ -34,14 +37,20 @@ export function OlharHumanoLogo({
       <div className="leading-none">
         <p
           className={cn(
-            'font-serif text-marca-titulo dark:text-foreground',
+            'font-serif',
+            sobreEscuro ? 'text-white' : 'text-titulo',
             grande ? 'text-3xl' : 'text-xl'
           )}
         >
           Olhar Humano
         </p>
         {subtitulo ? (
-          <p className="mt-1 font-subtitulo text-sm italic text-muted-foreground">
+          <p
+            className={cn(
+              'mt-1 font-subtitulo text-sm italic',
+              sobreEscuro ? 'text-lavanda' : 'text-muted-foreground'
+            )}
+          >
             Triagem de psicologia
           </p>
         ) : null}
@@ -51,11 +60,11 @@ export function OlharHumanoLogo({
 }
 
 const FORMAS = [
-  { left: '6%', top: '10%', tamanho: 120, cor: '#D9D9FF' },
-  { left: '82%', top: '8%', tamanho: 90, cor: '#C9F0D8' },
-  { left: '88%', top: '68%', tamanho: 140, cor: '#64B4ED' },
-  { left: '10%', top: '74%', tamanho: 80, cor: '#FF9C62' },
-  { left: '48%', top: '88%', tamanho: 56, cor: '#D9D9FF' },
+  { left: '6%', top: '10%', tamanho: 120, cor: 'fill-lavanda' },
+  { left: '82%', top: '8%', tamanho: 90, cor: 'fill-azul-clarinho' },
+  { left: '88%', top: '68%', tamanho: 140, cor: 'fill-lavanda-clara' },
+  { left: '10%', top: '74%', tamanho: 80, cor: 'fill-pessego' },
+  { left: '48%', top: '88%', tamanho: 56, cor: 'fill-lavanda' },
 ] as const;
 
 /** Soft dodecagons in the base colors, behind the sign-in screens. */
@@ -78,7 +87,7 @@ export function FundoDodecagonos({ className }: { className?: string }) {
             transform: 'translate(-50%, -50%)',
           }}
         >
-          <polygon points={dodecagono(50, 50, 50)} fill={forma.cor} />
+          <polygon points={dodecagono(50, 50, 50)} className={forma.cor} />
         </svg>
       ))}
     </div>
