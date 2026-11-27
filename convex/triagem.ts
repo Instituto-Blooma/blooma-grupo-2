@@ -1,16 +1,14 @@
 /**
- * Triage over WhatsApp, after the patient accepted the consent term:
+ * Entry triage over WhatsApp, after the patient accepted the consent term:
  *
  * 1. Sign-up: full name → what she likes to be called → hospital record number ("não sei" is ok).
- * 2. Check-in: the current scale (`escalasTriagem`), one question at a time, with buttons (up to 3
- *    options) or a list (4 to 10). A fixed rule (convex/lib/escala.ts) adds up the points and sets
- *    the priority. A risk answer makes the case urgent at once; the patient gets CVV 188 and
- *    SAMU 192 in the closing message of the check-in.
- * 3. Weekly: every Monday at 9h (Brasília) each signed-up patient gets a new check-in (crons.ts).
+ * 2. Triage: the current protocol (`protocolosTriagem`, convex/lib/protocolo.ts), one step at a
+ *    time: the Distress Thermometer (number 0-10, problem list by category with "Certo" /
+ *    "Corrigir", "Outros problemas"), then GAD-7 and PHQ-9 (list of options).
+ * 3. Weekly re-check (crons.ts) exists but the MVP is the entry triage only.
  *
- * A finished check-in with priority urgent, high or moderate opens a case in the team queue (or
- * updates the open one). A low one only creates a notice for the team (`avisosEquipe`): nothing
- * to solve. An open case never loses priority by itself: only the team closes it.
+ * A finished triage opens a case in the team queue (or updates the open one), or only a notice
+ * for the team when the priority is low. An open case never loses priority by itself.
  *
  * Called from convex/pacientes.ts (messages after consent, risk words) and convex/canal.ts (bot
  * gave up after 3 wrong answers).
@@ -20,19 +18,25 @@ import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, type MutationCtx, type QueryCtx } from './_generated/server';
 import type { MensagemRecebida } from './canal';
+import { configuracaoDoHospital, type ConfiguracaoTriagem } from './lib/configuracaoTriagem';
 import {
-  conteudoEscalaValidator,
-  definirPrioridade,
-  ESCALA_DE_EXEMPLO,
   ORDEM_PRIORIDADE,
   ORDEM_SEM_PRIORIDADE,
-  pontuacaoMaxima,
   prioridadeMaisAlta,
-  usaBotoes,
-  validarEscala,
-  type ConteudoEscala,
   type Prioridade,
 } from './lib/escala';
+import {
+  calcularResultados,
+  conteudoProtocoloValidator,
+  lerItensMarcados,
+  lerNumero,
+  lerTextoAberto,
+  NOME_DA_ESCALA,
+  PROTOCOLO_RASCUNHO,
+  validarProtocolo,
+  type ConteudoProtocolo,
+  type Resposta,
+} from './lib/protocolo';
 import { normalizarTexto } from './lib/texto';
 import { MENSAGEM_CRISE, temConsentimentoAtual } from './pacientes';
 
@@ -51,6 +55,10 @@ const PERGUNTA_PRONTUARIO =
 const PEDIR_TEXTO = 'Não consegui ler sua resposta. Por favor, escreva com letras.';
 const MENSAGEM_FIM_CHECKIN =
   'Obrigado por responder! A equipe de psicologia do hospital vai ver suas respostas. Se quiser falar com a equipe, é só escrever aqui.';
+const MENSAGEM_EQUIPE_VAI_AJUDAR =
+  'Não consegui entender suas respostas. Alguém da equipe vai continuar a conversa com você por aqui.';
+/** Typed answers in a row that could not be read before the team takes over. */
+const MAX_TENTATIVAS_INVALIDAS = 3;
 
 // ---------------------------------------------------------------------------
 // Called by convex/pacientes.ts
@@ -76,8 +84,11 @@ export async function tratarMensagemDepoisDoAceite(
     await tratarCadastro(ctx, paciente, paciente.etapaCadastro, mensagem.texto);
     return;
   }
-  if (mensagem.opcaoEscolhida?.startsWith(PREFIXO_OPCAO_CHECKIN)) {
-    await tratarRespostaDoCheckin(ctx, paciente, mensagem.opcaoEscolhida);
+  const checkin = paciente.checkinAtualId
+    ? await ctx.db.get('checkins', paciente.checkinAtualId)
+    : null;
+  if (checkin?.situacao === 'em_andamento') {
+    await tratarRespostaDaTriagem(ctx, paciente, checkin, mensagem);
     return;
   }
   // Accepted before sign-up existed: start it now.
@@ -162,35 +173,37 @@ async function tratarCadastro(
         cadastroConcluidoEm: Date.now(),
       });
       const apelido = paciente.apelido ? `, ${paciente.apelido}` : '';
-      await iniciarCheckin(ctx, paciente._id, 'cadastro', `Obrigado${apelido}!`);
+      await iniciarTriagem(ctx, paciente._id, 'cadastro', `Obrigado${apelido}!`);
       return;
     }
   }
 }
 
 // ---------------------------------------------------------------------------
-// Check-in
+// Entry triage
 // ---------------------------------------------------------------------------
 
-/** The scale for new check-ins. With none published yet, the EXAMPLE scale is published. */
-async function obterEscalaAtual(ctx: MutationCtx) {
-  const atual = await ultimaEscala(ctx);
+/** The protocol for new triages. With none published yet, the draft (texts pending) is used. */
+async function obterProtocoloAtual(ctx: MutationCtx) {
+  const atual = await ultimoProtocolo(ctx);
   if (atual) return atual;
-  console.warn('[triagem] nenhuma escala publicada: usando a escala de EXEMPLO');
-  const id = await ctx.db.insert('escalasTriagem', {
-    ...ESCALA_DE_EXEMPLO,
-    publicadaEm: Date.now(),
+  console.warn(
+    '[triagem] nenhum protocolo publicado: usando o rascunho (textos oficiais pendentes)'
+  );
+  const id = await ctx.db.insert('protocolosTriagem', {
+    ...PROTOCOLO_RASCUNHO,
+    publicadoEm: Date.now(),
   });
-  const criada = await ctx.db.get('escalasTriagem', id);
-  if (!criada) throw new Error('Failed to create example scale');
-  return criada;
+  const criado = await ctx.db.get('protocolosTriagem', id);
+  if (!criado) throw new Error('Failed to create draft protocol');
+  return criado;
 }
 
-async function ultimaEscala(ctx: QueryCtx | MutationCtx) {
-  return await ctx.db.query('escalasTriagem').withIndex('by_publicadaEm').order('desc').first();
+export async function ultimoProtocolo(ctx: QueryCtx | MutationCtx) {
+  return await ctx.db.query('protocolosTriagem').withIndex('by_publicadoEm').order('desc').first();
 }
 
-async function iniciarCheckin(
+async function iniciarTriagem(
   ctx: MutationCtx,
   pacienteId: Id<'pacientes'>,
   motivo: Doc<'checkins'>['motivo'],
@@ -199,16 +212,15 @@ async function iniciarCheckin(
   const paciente = await ctx.db.get('pacientes', pacienteId);
   if (!paciente?.organizationId) return;
   await interromperCheckin(ctx, paciente, 'sem_resposta');
-  const escala = await obterEscalaAtual(ctx);
+  const protocolo = await obterProtocoloAtual(ctx);
+  const configuracao = await configuracaoDoHospital(ctx, paciente.organizationId);
   const checkinId = await ctx.db.insert('checkins', {
     pacienteId,
     organizationId: paciente.organizationId,
-    escalaId: escala._id,
-    escalaVersao: escala.versao,
-    escalaNome: escala.nome,
-    escalaExemplo: escala.exemplo,
-    faixas: escala.faixas,
-    pontuacaoMaxima: pontuacaoMaxima(escala),
+    protocoloId: protocolo._id,
+    protocoloVersao: protocolo.versao,
+    protocoloNome: protocolo.nome,
+    textoOficialPendente: protocolo.textoOficialPendente,
     motivo,
     situacao: 'em_andamento',
     proximaPergunta: 0,
@@ -218,158 +230,324 @@ async function iniciarCheckin(
     iniciadoEm: Date.now(),
   });
   await ctx.db.patch('pacientes', pacienteId, { checkinAtualId: checkinId });
-  const total = escala.perguntas.length;
-  const introducao =
-    motivo === 'semanal'
-      ? `${saudacao} Hora do check-in da semana: são ${total} perguntas rápidas. É só tocar em uma resposta.`
-      : `${saudacao} Agora vamos fazer um check-in rápido: são ${total} perguntas. É só tocar em uma resposta.`;
-  await enviarPergunta(ctx, paciente.telefone, escala, 0, introducao);
+  const introducao = `${saudacao} Agora vou fazer algumas perguntas para a equipe de psicologia entender como você está.`;
+  await enviarEtapa(ctx, paciente.telefone, protocolo, 0, configuracao, introducao);
 }
 
-/** Text of a check-in question as the patient sees it (also used by convex/demonstracao.ts). */
-export function textoDaPergunta(
-  escala: Pick<ConteudoEscala, 'perguntas'>,
+/**
+ * Text of a protocol step as the patient sees it (also used by convex/demonstracao.ts).
+ * The first step of each scale carries its official instruction; the first problem category
+ * carries the explanation of how to answer the list.
+ */
+export function textoDaEtapa(
+  protocolo: Pick<ConteudoProtocolo, 'etapas' | 'introducoes'>,
   indice: number,
-  introducao?: string
+  configuracao: Pick<ConfiguracaoTriagem, 'explicacaoListaProblemas'>,
+  prefixo?: string,
+  repetindo = false
 ) {
-  const pergunta = escala.perguntas[indice];
-  const inicio = [
-    ...(introducao ? [introducao, ''] : []),
-    `*Pergunta ${indice + 1} de ${escala.perguntas.length}*`,
-    pergunta.texto,
-  ];
-  // Numbered options, so she can also type "2" or "dois" instead of tapping.
-  const comNumeros = [
-    ...inicio,
-    '',
-    'Toque em uma opção ou responda com o número:',
-    ...pergunta.opcoes.map((opcao, posicao) => `${posicao + 1}. ${opcao.titulo}`),
-  ].join('\n');
-  return comNumeros.length <= MAX_CORPO_PERGUNTA ? comNumeros : inicio.join('\n');
+  const etapa = protocolo.etapas[indice];
+  const anterior = protocolo.etapas[indice - 1];
+  const partes: string[] = [];
+  if (prefixo) partes.push(prefixo, '');
+  if (!repetindo && (!anterior || anterior.escala !== etapa.escala)) {
+    partes.push(protocolo.introducoes[etapa.escala], '');
+  }
+  if (!repetindo && etapa.tipo === 'problemas' && anterior?.tipo !== 'problemas') {
+    partes.push(configuracao.explicacaoListaProblemas, '');
+  }
+  switch (etapa.tipo) {
+    case 'numero':
+      partes.push(
+        etapa.texto,
+        '',
+        `Responda com um número inteiro de ${etapa.minimo} a ${etapa.maximo}.`
+      );
+      break;
+    case 'problemas':
+      partes.push(
+        `*${etapa.categoria}*`,
+        ...etapa.itens.map((item, posicao) => `${posicao + 1}. ${item.texto}`),
+        '',
+        'Escreva os números que acontecem com você (por exemplo: 1, 3) ou "nenhum".'
+      );
+      break;
+    case 'aberta':
+      partes.push(
+        `*${etapa.texto}*`,
+        'Escreva com as suas palavras. Se não houver, escreva "nenhum".'
+      );
+      break;
+    case 'escolha': {
+      const daEscala = protocolo.etapas.filter((outra) => outra.escala === etapa.escala);
+      const posicao = daEscala.findIndex((outra) => outra.id === etapa.id) + 1;
+      partes.push(
+        `*${NOME_DA_ESCALA[etapa.escala]}: pergunta ${posicao} de ${daEscala.length}*`,
+        etapa.texto,
+        '',
+        'Toque em uma opção ou responda com o número:',
+        ...etapa.opcoes.map((opcao, numero) => `${numero + 1}. ${opcao.titulo}`)
+      );
+      break;
+    }
+  }
+  return partes.join('\n');
 }
 
-/** Closing message of a check-in (with CVV/SAMU after a risk answer). */
+/** Closing message of the triage (with CVV/SAMU after a risk answer). */
 export function mensagemFinalDoCheckin(teveRisco: boolean) {
   return teveRisco ? `${MENSAGEM_FIM_CHECKIN}\n\n${MENSAGEM_CRISE}` : MENSAGEM_FIM_CHECKIN;
 }
 
-async function enviarPergunta(
+async function enviarEtapa(
   ctx: MutationCtx,
   telefone: string,
-  escala: Doc<'escalasTriagem'>,
+  protocolo: ConteudoProtocolo,
   indice: number,
-  introducao?: string
+  configuracao: ConfiguracaoTriagem,
+  prefixo?: string,
+  repetindo = false
 ) {
-  const pergunta = escala.perguntas[indice];
-  const texto = textoDaPergunta(escala, indice, introducao);
-  const opcoes = pergunta.opcoes.map((opcao) => ({
-    id: `${PREFIXO_OPCAO_CHECKIN}${pergunta.id}:${opcao.id}`,
-    titulo: opcao.titulo,
-  }));
-  if (usaBotoes(pergunta)) {
-    await ctx.runMutation(internal.canal.enviarBotoes, { telefone, texto, opcoes });
-  } else {
+  const etapa = protocolo.etapas[indice];
+  const texto = textoDaEtapa(protocolo, indice, configuracao, prefixo, repetindo);
+  if (etapa.tipo === 'escolha') {
     await ctx.runMutation(internal.canal.enviarLista, {
       telefone,
-      texto,
+      texto: texto.length <= MAX_CORPO_PERGUNTA ? texto : etapa.texto,
       textoBotao: 'Ver opções',
-      opcoes,
+      opcoes: etapa.opcoes.map((opcao) => ({
+        id: `${PREFIXO_OPCAO_CHECKIN}${etapa.id}:${opcao.id}`,
+        titulo: opcao.titulo,
+      })),
     });
+    return;
   }
+  await enviarTexto(ctx, telefone, texto);
 }
 
-async function tratarRespostaDoCheckin(
+/** Every message she sends while a triage is open. */
+async function tratarRespostaDaTriagem(
   ctx: MutationCtx,
   paciente: Doc<'pacientes'>,
-  opcaoEscolhida: string
+  checkin: Doc<'checkins'>,
+  mensagem: MensagemRecebida
 ) {
-  const checkin = paciente.checkinAtualId
-    ? await ctx.db.get('checkins', paciente.checkinAtualId)
+  const protocolo = checkin.protocoloId
+    ? await ctx.db.get('protocolosTriagem', checkin.protocoloId)
     : null;
-  if (!checkin || checkin.situacao !== 'em_andamento') return;
-  const escala = await ctx.db.get('escalasTriagem', checkin.escalaId);
-  const pergunta = escala?.perguntas[checkin.proximaPergunta];
-  if (!escala || !pergunta) {
+  const etapa = protocolo?.etapas[checkin.proximaPergunta];
+  if (!protocolo || !etapa) {
+    // Old example-scale check-in or a broken protocol: close it.
     await interromperCheckin(ctx, paciente, 'sem_resposta');
     return;
   }
-  const prefixo = `${PREFIXO_OPCAO_CHECKIN}${pergunta.id}:`;
-  // A button of another question (e.g. an old message) does not count.
-  if (!opcaoEscolhida.startsWith(prefixo)) return;
-  const opcao = pergunta.opcoes.find((item) => item.id === opcaoEscolhida.slice(prefixo.length));
-  if (!opcao) return;
-
+  const configuracao = await configuracaoDoHospital(ctx, checkin.organizationId);
   const agora = Date.now();
-  const respostas = [
-    ...checkin.respostas,
-    {
-      perguntaId: pergunta.id,
-      perguntaTexto: pergunta.texto,
-      opcaoId: opcao.id,
-      opcaoTitulo: opcao.titulo,
-      pontos: opcao.pontos,
-      risco: opcao.risco,
-      respondidaEm: agora,
-    },
-  ];
-  const pontuacao = checkin.pontuacao + opcao.pontos;
-  const teveRisco = checkin.teveRisco || opcao.risco;
-  const proximaPergunta = checkin.proximaPergunta + 1;
+  const prefixoDaEtapa = `${PREFIXO_OPCAO_CHECKIN}${etapa.id}:`;
+  const opcao = mensagem.opcaoEscolhida?.startsWith(prefixoDaEtapa)
+    ? mensagem.opcaoEscolhida.slice(prefixoDaEtapa.length)
+    : null;
 
-  if (opcao.risco && paciente.organizationId) {
-    // The team sees it at once; the patient gets CVV/SAMU at the end of the check-in.
-    await ctx.db.insert('alertasPaciente', {
-      pacienteId: paciente._id,
-      organizationId: paciente.organizationId,
-      tipo: 'resposta_de_risco',
-      checkinId: checkin._id,
-      criadoEm: agora,
-    });
-    await colocarNaFila(ctx, paciente._id, 'urgente', 'risco');
+  switch (etapa.tipo) {
+    case 'escolha': {
+      // Typed answers that match no option are repeated by the channel (convex/canal.ts).
+      const escolhida = etapa.opcoes.find((item) => item.id === opcao);
+      if (!escolhida) return;
+      await avancar(ctx, paciente, checkin, protocolo, configuracao, {
+        perguntaId: etapa.id,
+        perguntaTexto: etapa.texto,
+        respondidaEm: agora,
+        tipo: 'escolha',
+        escala: etapa.escala,
+        opcaoId: escolhida.id,
+        opcaoTitulo: escolhida.titulo,
+        pontos: escolhida.pontos,
+        risco: etapa.alertaDeRisco && escolhida.pontos > 0,
+      });
+      return;
+    }
+    case 'numero': {
+      const valor = lerNumero(mensagem.texto, etapa.minimo, etapa.maximo);
+      if (valor === null) {
+        await respostaInvalida(
+          ctx,
+          paciente,
+          checkin,
+          protocolo,
+          configuracao,
+          `Não entendi. Responda só com um número inteiro de ${etapa.minimo} a ${etapa.maximo}, por exemplo: 5.`
+        );
+        return;
+      }
+      await avancar(ctx, paciente, checkin, protocolo, configuracao, {
+        perguntaId: etapa.id,
+        perguntaTexto: etapa.texto,
+        respondidaEm: agora,
+        tipo: 'numero',
+        escala: etapa.escala,
+        valor,
+      });
+      return;
+    }
+    case 'problemas': {
+      if (checkin.selecaoPendente) {
+        // Waiting for "Certo" / "Corrigir" (typed answers are repeated by the channel).
+        if (opcao === 'certo') {
+          const marcados = new Set(checkin.selecaoPendente);
+          await avancar(ctx, paciente, checkin, protocolo, configuracao, {
+            perguntaId: etapa.id,
+            perguntaTexto: etapa.categoria,
+            respondidaEm: agora,
+            tipo: 'problemas',
+            escala: etapa.escala,
+            itens: etapa.itens.map((item, posicao) => ({
+              id: item.id,
+              texto: item.texto,
+              sim: marcados.has(posicao + 1),
+            })),
+          });
+        } else if (opcao === 'corrigir') {
+          await ctx.db.patch('checkins', checkin._id, { selecaoPendente: undefined });
+          await enviarEtapa(
+            ctx,
+            paciente.telefone,
+            protocolo,
+            checkin.proximaPergunta,
+            configuracao,
+            'Tudo bem, vamos de novo.',
+            true
+          );
+        }
+        return;
+      }
+      const marcados = lerItensMarcados(mensagem.texto, etapa.itens.length);
+      if (marcados === null) {
+        await respostaInvalida(
+          ctx,
+          paciente,
+          checkin,
+          protocolo,
+          configuracao,
+          `Não entendi. Escreva só os números dos itens que acontecem com você, separados por vírgula (de 1 a ${etapa.itens.length}), ou "nenhum".`
+        );
+        return;
+      }
+      await ctx.db.patch('checkins', checkin._id, {
+        selecaoPendente: marcados,
+        tentativasInvalidas: 0,
+      });
+      const entendido = marcados.length
+        ? [
+            `Entendi que estes itens de "${etapa.categoria}" acontecem com você:`,
+            ...marcados.map((numero) => `${numero}. ${etapa.itens[numero - 1].texto}`),
+          ]
+        : [`Entendi que nenhum item de "${etapa.categoria}" acontece com você.`];
+      await ctx.runMutation(internal.canal.enviarBotoes, {
+        telefone: paciente.telefone,
+        texto: [...entendido, '', 'Está certo?'].join('\n').slice(0, MAX_CORPO_PERGUNTA),
+        opcoes: [
+          { id: `${prefixoDaEtapa}certo`, titulo: 'Certo' },
+          { id: `${prefixoDaEtapa}corrigir`, titulo: 'Corrigir' },
+        ],
+      });
+      return;
+    }
+    case 'aberta': {
+      if (!mensagem.texto.trim()) {
+        await respostaInvalida(ctx, paciente, checkin, protocolo, configuracao, PEDIR_TEXTO);
+        return;
+      }
+      await avancar(ctx, paciente, checkin, protocolo, configuracao, {
+        perguntaId: etapa.id,
+        perguntaTexto: etapa.texto,
+        respondidaEm: agora,
+        tipo: 'aberta',
+        escala: etapa.escala,
+        texto: lerTextoAberto(mensagem.texto),
+      });
+      return;
+    }
   }
+}
 
-  if (proximaPergunta < escala.perguntas.length) {
-    await ctx.db.patch('checkins', checkin._id, {
-      respostas,
-      pontuacao,
-      teveRisco,
-      proximaPergunta,
-    });
-    await enviarPergunta(ctx, paciente.telefone, escala, proximaPergunta);
+/** Could not read the typed answer: explain and ask again; on the 3rd time the team takes over. */
+async function respostaInvalida(
+  ctx: MutationCtx,
+  paciente: Doc<'pacientes'>,
+  checkin: Doc<'checkins'>,
+  protocolo: ConteudoProtocolo,
+  configuracao: ConfiguracaoTriagem,
+  explicacao: string
+) {
+  const tentativas = (checkin.tentativasInvalidas ?? 0) + 1;
+  if (tentativas >= MAX_TENTATIVAS_INVALIDAS) {
+    await enviarTexto(ctx, paciente.telefone, MENSAGEM_EQUIPE_VAI_AJUDAR);
+    await registrarQueRoboNaoEntendeu(ctx, paciente.telefone);
     return;
   }
+  await ctx.db.patch('checkins', checkin._id, { tentativasInvalidas: tentativas });
+  await enviarEtapa(
+    ctx,
+    paciente.telefone,
+    protocolo,
+    checkin.proximaPergunta,
+    configuracao,
+    explicacao,
+    true
+  );
+}
 
-  const prioridade = definirPrioridade(pontuacao, teveRisco, checkin.faixas);
+/** Stores the answer and sends the next step, or closes the triage after the last one. */
+async function avancar(
+  ctx: MutationCtx,
+  paciente: Doc<'pacientes'>,
+  checkin: Doc<'checkins'>,
+  protocolo: ConteudoProtocolo,
+  configuracao: ConfiguracaoTriagem,
+  resposta: Resposta
+) {
+  const respostas = [...checkin.respostas, resposta];
+  const proxima = checkin.proximaPergunta + 1;
+  if (proxima < protocolo.etapas.length) {
+    await ctx.db.patch('checkins', checkin._id, {
+      respostas,
+      proximaPergunta: proxima,
+      selecaoPendente: undefined,
+      tentativasInvalidas: 0,
+    });
+    await enviarEtapa(ctx, paciente.telefone, protocolo, proxima, configuracao);
+    return;
+  }
+  await concluirTriagem(ctx, paciente, checkin, respostas, false);
+}
+
+async function concluirTriagem(
+  ctx: MutationCtx,
+  paciente: Doc<'pacientes'>,
+  checkin: Doc<'checkins'>,
+  respostas: Resposta[],
+  gadPhqNaoAplicados: boolean
+) {
+  const agora = Date.now();
+  const resultados = calcularResultados(respostas, gadPhqNaoAplicados);
   await ctx.db.patch('checkins', checkin._id, {
     respostas,
-    pontuacao,
-    teveRisco,
-    proximaPergunta,
-    prioridade,
+    proximaPergunta: checkin.proximaPergunta + 1,
+    selecaoPendente: undefined,
+    tentativasInvalidas: undefined,
+    resultados,
+    teveRisco: resultados.riscoPhq9,
     situacao: 'concluido',
     concluidoEm: agora,
   });
   await ctx.db.patch('pacientes', paciente._id, {
     checkinAtualId: undefined,
     ultimoCheckinEm: agora,
-    ultimaPontuacao: pontuacao,
-    ultimaPrioridade: prioridade,
+    ultimasNotas: { dt: resultados.dt, gad7: resultados.gad7, phq9: resultados.phq9 },
   });
-  const atualizada = await ctx.db.get('pacientes', paciente._id);
-  if (prioridade === 'baixa' && atualizada && !atualizada.naFila && paciente.organizationId) {
-    // Nothing to solve: no case is opened. The team gets a notice and the answers stay on record.
-    await ctx.db.insert('avisosEquipe', {
-      organizationId: paciente.organizationId,
-      pacienteId: paciente._id,
-      checkinId: checkin._id,
-      tipo: 'checkin_prioridade_baixa',
-      visto: false,
-      criadoEm: agora,
-    });
-  } else {
-    await colocarNaFila(ctx, paciente._id, prioridade);
-  }
-  await enviarTexto(ctx, paciente.telefone, mensagemFinalDoCheckin(teveRisco));
+  // The rule that turns the scores into a priority comes from the hospital settings.
+  await colocarNaFila(ctx, paciente._id, undefined);
+  await enviarTexto(ctx, paciente.telefone, mensagemFinalDoCheckin(resultados.riscoPhq9));
 }
 
 async function interromperCheckin(
@@ -438,7 +616,7 @@ export const iniciarCheckinsDaSemana = internalMutation({
     for (const paciente of pagina.page) {
       if (await podeReceberCheckin(ctx, paciente)) {
         const ola = paciente.apelido ? `Olá, ${paciente.apelido}!` : 'Olá!';
-        await iniciarCheckin(ctx, paciente._id, 'semanal', ola);
+        await iniciarTriagem(ctx, paciente._id, 'semanal', ola);
       }
     }
     if (!pagina.isDone) {
@@ -475,29 +653,32 @@ export const enviarCheckinAgora = internalMutation({
       throw new ConvexError('Paciente não encontrada ou ainda sem cadastro completo.');
     }
     const ola = paciente.apelido ? `Olá, ${paciente.apelido}!` : 'Olá!';
-    await iniciarCheckin(ctx, paciente._id, 'semanal', ola);
+    await iniciarTriagem(ctx, paciente._id, 'semanal', ola);
     return null;
   },
 });
 
 /**
- * Publishes a new scale version; new check-ins use it (check-ins already started keep theirs).
- *   npx convex run triagem:publicarEscala '{"escala":{"versao":"1","nome":"...","exemplo":false,
- *     "perguntas":[...],"faixas":{"altaAPartirDe":7,"moderadaAPartirDe":4}}}'
+ * Publishes a new protocol version (official texts of DT, GAD-7 and PHQ-9); new triages use it
+ * (triages already started keep theirs).
+ *   npx convex run triagem:publicarProtocolo '{"protocolo": {...}}'
  */
-export const publicarEscala = internalMutation({
-  args: { escala: conteudoEscalaValidator },
-  returns: v.id('escalasTriagem'),
+export const publicarProtocolo = internalMutation({
+  args: { protocolo: conteudoProtocoloValidator },
+  returns: v.id('protocolosTriagem'),
   handler: async (ctx, args) => {
-    validarEscala(args.escala);
+    validarProtocolo(args.protocolo);
     const existente = await ctx.db
-      .query('escalasTriagem')
-      .withIndex('by_versao', (q) => q.eq('versao', args.escala.versao))
+      .query('protocolosTriagem')
+      .withIndex('by_versao', (q) => q.eq('versao', args.protocolo.versao))
       .unique();
     if (existente) {
-      throw new ConvexError(`A versão "${args.escala.versao}" da escala já existe.`);
+      throw new ConvexError(`A versão "${args.protocolo.versao}" do protocolo já existe.`);
     }
-    return await ctx.db.insert('escalasTriagem', { ...args.escala, publicadaEm: Date.now() });
+    return await ctx.db.insert('protocolosTriagem', {
+      ...args.protocolo,
+      publicadoEm: Date.now(),
+    });
   },
 });
 

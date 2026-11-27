@@ -2,6 +2,7 @@ import { defineSchema, defineTable } from 'convex/server';
 import { authTables } from '@convex-dev/auth/server';
 import { v } from 'convex/values';
 import { conteudoEscalaValidator, faixasValidator, prioridadeValidator } from './lib/escala';
+import { conteudoProtocoloValidator, respostaValidator } from './lib/protocolo';
 
 /** One option of a menu sent to a patient (button or list row). Used by `convex/canal.ts`. */
 export const opcaoMenuValidator = v.object({
@@ -151,6 +152,14 @@ const schema = defineSchema({
     responsavelId: v.optional(v.id('users')),
     /** Priority of the last finished check-in (also when it opened no case). */
     ultimaPrioridade: v.optional(prioridadeValidator),
+    /** Scores of the last finished entry triage (GAD-7/PHQ-9 missing when not applied). */
+    ultimasNotas: v.optional(
+      v.object({
+        dt: v.optional(v.number()),
+        gad7: v.optional(v.number()),
+        phq9: v.optional(v.number()),
+      })
+    ),
     // The two alert flags are true only while the case is open (closing the case clears them),
     // so their indexes do not need `naFila`. Index names must be 64 characters or less.
     /** Open case has a real-risk alert (risk answer or risk word): queue filter "Risco". */
@@ -215,8 +224,25 @@ const schema = defineSchema({
     em: v.number(),
   }).index('by_pacienteId_and_em', ['pacienteId', 'em']),
 
-  // Triage scale versions (data, so the psychology team can replace them). The most recent one
-  // is used for new check-ins. See convex/lib/escala.ts.
+  // Entry triage protocol versions: DT, GAD-7 and PHQ-9 as data (convex/lib/protocolo.ts).
+  // The most recent one is used for new triages.
+  protocolosTriagem: defineTable({
+    ...conteudoProtocoloValidator.fields,
+    publicadoEm: v.number(),
+  })
+    .index('by_versao', ['versao'])
+    .index('by_publicadoEm', ['publicadoEm']),
+
+  // Per-hospital triage settings edited on the Configurações page. Missing fields use the
+  // defaults of convex/lib/configuracaoTriagem.ts.
+  configuracoesHospital: defineTable({
+    organizationId: v.string(),
+    explicacaoListaProblemas: v.optional(v.string()),
+    atualizadoEm: v.number(),
+    atualizadoPor: v.optional(v.id('users')),
+  }).index('by_organizationId', ['organizationId']),
+
+  // OLD example scale (replaced by protocolosTriagem). Kept so earlier test data still reads.
   escalasTriagem: defineTable({
     ...conteudoEscalaValidator.fields,
     publicadaEm: v.number(),
@@ -229,12 +255,31 @@ const schema = defineSchema({
   checkins: defineTable({
     pacienteId: v.id('pacientes'),
     organizationId: v.string(),
-    escalaId: v.id('escalasTriagem'),
-    escalaVersao: v.string(),
-    escalaNome: v.string(),
-    escalaExemplo: v.boolean(),
-    faixas: faixasValidator,
-    pontuacaoMaxima: v.number(),
+    // Entry triage (current): protocol used and its results.
+    protocoloId: v.optional(v.id('protocolosTriagem')),
+    protocoloVersao: v.optional(v.string()),
+    protocoloNome: v.optional(v.string()),
+    textoOficialPendente: v.optional(v.boolean()),
+    resultados: v.optional(
+      v.object({
+        dt: v.optional(v.number()),
+        gad7: v.optional(v.number()),
+        phq9: v.optional(v.number()),
+        riscoPhq9: v.boolean(),
+        gadPhqNaoAplicados: v.boolean(),
+      })
+    ),
+    /** Problem list: numbers she typed, waiting for "Certo" / "Corrigir". */
+    selecaoPendente: v.optional(v.array(v.number())),
+    /** Typed answers in a row that could not be read (3 → the team takes over). */
+    tentativasInvalidas: v.optional(v.number()),
+    // OLD example-scale check-ins.
+    escalaId: v.optional(v.id('escalasTriagem')),
+    escalaVersao: v.optional(v.string()),
+    escalaNome: v.optional(v.string()),
+    escalaExemplo: v.optional(v.boolean()),
+    faixas: v.optional(faixasValidator),
+    pontuacaoMaxima: v.optional(v.number()),
     motivo: v.union(v.literal('cadastro'), v.literal('semanal')),
     situacao: v.union(v.literal('em_andamento'), v.literal('concluido'), v.literal('interrompido')),
     motivoInterrupcao: v.optional(
@@ -244,19 +289,9 @@ const schema = defineSchema({
         v.literal('robo_nao_entendeu')
       )
     ),
-    /** Index of the next question to ask. */
+    /** Index of the next question (protocol step) to ask. */
     proximaPergunta: v.number(),
-    respostas: v.array(
-      v.object({
-        perguntaId: v.string(),
-        perguntaTexto: v.string(),
-        opcaoId: v.string(),
-        opcaoTitulo: v.string(),
-        pontos: v.number(),
-        risco: v.boolean(),
-        respondidaEm: v.number(),
-      })
-    ),
+    respostas: v.array(respostaValidator),
     pontuacao: v.number(),
     teveRisco: v.boolean(),
     prioridade: v.optional(prioridadeValidator),

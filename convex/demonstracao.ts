@@ -12,16 +12,12 @@ import { ConvexError, v } from 'convex/values';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
-import {
-  definirPrioridade,
-  ESCALA_DE_EXEMPLO,
-  pontuacaoMaxima,
-  type Prioridade,
-} from './lib/escala';
+import { configuracaoDoHospital, type ConfiguracaoTriagem } from './lib/configuracaoTriagem';
+import { calcularResultados, lerNumero, PROTOCOLO_RASCUNHO, type Resposta } from './lib/protocolo';
 import { normalizarTexto } from './lib/texto';
 import { tenantsClient } from './lib/tenantsClient';
 import { MENSAGEM_CRISE } from './pacientes';
-import { colocarNaFila, mensagemFinalDoCheckin, textoDaPergunta } from './triagem';
+import { colocarNaFila, mensagemFinalDoCheckin, textoDaEtapa, ultimoProtocolo } from './triagem';
 
 /** First-setup hospital (convex/testing/e2e.ts); older local setups still have "acme-corp". */
 const SLUGS_PADRAO = ['ac-camargo', 'acme-corp'];
@@ -29,12 +25,17 @@ const CODIGO_DO_HOSPITAL = 'ACC';
 const DIA = 24 * 60 * 60 * 1000;
 const LOTE = 500;
 
-type Checkin = {
+type Triagem = {
   diasAtras: number;
-  /** Option position (0, 1, 2…) chosen for each question, in order. */
-  respostas: number[];
-  /** Answers she typed instead of tapping: question position → what she wrote. */
-  digitadas?: Record<number, string>;
+  /** Distress Thermometer (0 to 10), as she typed it. */
+  dt: string;
+  /** Marked item numbers of each DT problem category, in protocol order (missing = "nenhum"). */
+  problemas?: number[][];
+  /** "Outros problemas" (null = "nenhum"). */
+  outros?: string | null;
+  /** Option position (0 to 3) of each GAD-7 / PHQ-9 question; missing = not applied. */
+  gad7?: number[];
+  phq9?: number[];
 };
 
 type PacienteFicticia = {
@@ -43,7 +44,7 @@ type PacienteFicticia = {
   apelido: string;
   prontuario?: string;
   criadaHaDias: number;
-  checkins: Checkin[];
+  triagem?: Triagem;
   extra?: 'palavra_de_risco' | 'robo_nao_entendeu' | 'cadastro_incompleto' | 'sem_termo';
 };
 
@@ -54,10 +55,14 @@ const PACIENTES: PacienteFicticia[] = [
     apelido: 'Jo',
     prontuario: '000123-4',
     criadaHaDias: 15,
-    checkins: [
-      { diasAtras: 8, respostas: [1, 1, 1, 0, 0, 0] },
-      { diasAtras: 1, respostas: [2, 1, 2, 1, 0, 1], digitadas: { 5: 'dois' } },
-    ],
+    triagem: {
+      diasAtras: 1,
+      dt: 'oito',
+      problemas: [[1], [], [1], [], [1]],
+      outros: 'Não consigo dormir direito',
+      gad7: [2, 2, 2, 2, 2, 2, 2],
+      phq9: [2, 2, 2, 2, 1, 1, 2, 1, 1],
+    },
   },
   {
     final: '02',
@@ -65,7 +70,14 @@ const PACIENTES: PacienteFicticia[] = [
     apelido: 'Lu',
     prontuario: '000245-1',
     criadaHaDias: 20,
-    checkins: [{ diasAtras: 2, respostas: [2, 2, 1, 1, 1, 0] }],
+    triagem: {
+      diasAtras: 2,
+      dt: '7',
+      problemas: [[], [1], [1], [], []],
+      outros: null,
+      gad7: [3, 3, 2, 2, 3, 2, 2],
+      phq9: [1, 1, 1, 1, 1, 0, 1, 0, 0],
+    },
     extra: 'palavra_de_risco',
   },
   {
@@ -73,10 +85,14 @@ const PACIENTES: PacienteFicticia[] = [
     nomeCompleto: 'Teresa Alves',
     apelido: 'Teresa',
     criadaHaDias: 22,
-    checkins: [
-      { diasAtras: 9, respostas: [1, 1, 1, 1, 0, 0] },
-      { diasAtras: 2, respostas: [2, 2, 2, 1, 1, 0], digitadas: { 2: 'RUIM' } },
-    ],
+    triagem: {
+      diasAtras: 2,
+      dt: '6',
+      problemas: [[1], [], [1], [], [1]],
+      outros: null,
+      gad7: [1, 1, 1, 1, 1, 1, 1],
+      phq9: [2, 2, 2, 2, 2, 2, 2, 1, 0],
+    },
   },
   {
     final: '04',
@@ -84,14 +100,20 @@ const PACIENTES: PacienteFicticia[] = [
     apelido: 'Cau',
     prontuario: '000377-9',
     criadaHaDias: 12,
-    checkins: [{ diasAtras: 2, respostas: [1, 1, 1, 1, 0, 0] }],
+    triagem: {
+      diasAtras: 2,
+      dt: '5',
+      problemas: [[1], [], [], [], [1]],
+      outros: null,
+      gad7: [1, 1, 1, 1, 1, 1, 1],
+      phq9: [1, 1, 1, 1, 1, 1, 0, 0, 0],
+    },
   },
   {
     final: '05',
     nomeCompleto: 'Rita Gomes',
     apelido: 'Rita',
     criadaHaDias: 6,
-    checkins: [],
     extra: 'robo_nao_entendeu',
   },
   {
@@ -100,25 +122,21 @@ const PACIENTES: PacienteFicticia[] = [
     apelido: 'Mari',
     prontuario: '000412-0',
     criadaHaDias: 30,
-    checkins: [
-      { diasAtras: 16, respostas: [1, 1, 0, 0, 0, 0] },
-      { diasAtras: 9, respostas: [1, 0, 0, 0, 0, 0] },
-      { diasAtras: 2, respostas: [1, 0, 1, 0, 0, 0], digitadas: { 0: 'um pouco' } },
-    ],
+    // DT below the cut: GAD-7 and PHQ-9 are not applied.
+    triagem: { diasAtras: 2, dt: '2', problemas: [[], [], [], [], [1]], outros: null },
   },
   {
     final: '07',
     nomeCompleto: 'Helena Rocha',
     apelido: 'Helena',
     criadaHaDias: 10,
-    checkins: [{ diasAtras: 2, respostas: [0, 1, 0, 0, 0, 0] }],
+    triagem: { diasAtras: 2, dt: 'tres', outros: null },
   },
   {
     final: '08',
     nomeCompleto: 'Beatriz Nunes',
     apelido: '',
     criadaHaDias: 1,
-    checkins: [],
     extra: 'cadastro_incompleto',
   },
   {
@@ -126,7 +144,6 @@ const PACIENTES: PacienteFicticia[] = [
     nomeCompleto: '',
     apelido: '',
     criadaHaDias: 0,
-    checkins: [],
     extra: 'sem_termo',
   },
 ];
@@ -145,11 +162,12 @@ export const criarPacientesFicticias = internalMutation({
     }
     const hospital = await escolherHospital(ctx, args.hospital);
     const agora = Date.now();
-    const { termo, escala } = await prepararConfiguracao(ctx, hospital._id, agora);
+    const { termo, protocolo } = await prepararConfiguracao(ctx, hospital._id, agora);
+    const configuracao = await configuracaoDoHospital(ctx, hospital._id);
 
     for (const ficticia of PACIENTES) {
       await apagarPacienteFicticia(ctx, telefoneDe(ficticia.final));
-      await criarPaciente(ctx, ficticia, hospital._id, termo, escala, agora);
+      await criarPaciente(ctx, ficticia, hospital._id, termo, protocolo, configuracao, agora);
     }
     return { hospital: hospital.name, pacientes: PACIENTES.length };
   },
@@ -175,7 +193,7 @@ async function escolherHospital(ctx: MutationCtx, slug: string | undefined) {
   );
 }
 
-/** Hospital code, consent term, risk words and scale: created only when missing. */
+/** Hospital code, consent term, risk words and protocol: created only when missing. */
 async function prepararConfiguracao(ctx: MutationCtx, organizationId: string, agora: number) {
   const codigo = await ctx.db
     .query('hospitais')
@@ -215,20 +233,16 @@ async function prepararConfiguracao(ctx: MutationCtx, organizationId: string, ag
     }
   }
 
-  let escala = await ctx.db
-    .query('escalasTriagem')
-    .withIndex('by_publicadaEm')
-    .order('desc')
-    .first();
-  if (!escala) {
-    const id = await ctx.db.insert('escalasTriagem', {
-      ...ESCALA_DE_EXEMPLO,
-      publicadaEm: agora - 60 * DIA,
+  let protocolo = await ultimoProtocolo(ctx);
+  if (!protocolo) {
+    const id = await ctx.db.insert('protocolosTriagem', {
+      ...PROTOCOLO_RASCUNHO,
+      publicadoEm: agora - 60 * DIA,
     });
-    escala = await ctx.db.get('escalasTriagem', id);
+    protocolo = await ctx.db.get('protocolosTriagem', id);
   }
-  if (!termo || !escala) throw new Error('Failed to prepare demo configuration');
-  return { termo, escala };
+  if (!termo || !protocolo) throw new Error('Failed to prepare demo configuration');
+  return { termo, protocolo };
 }
 
 async function criarPaciente(
@@ -236,7 +250,8 @@ async function criarPaciente(
   ficticia: PacienteFicticia,
   organizationId: string,
   termo: Doc<'termosConsentimento'>,
-  escala: Doc<'escalasTriagem'>,
+  protocolo: Doc<'protocolosTriagem'>,
+  configuracao: ConfiguracaoTriagem,
   agora: number
 ) {
   const telefone = telefoneDe(ficticia.final);
@@ -276,53 +291,17 @@ async function criarPaciente(
   );
   await conversa.paciente(ficticia.prontuario ?? 'não sei', (momento += 60_000));
 
-  let ultimo: {
-    id: Id<'checkins'>;
-    pontuacao: number;
-    prioridade: Prioridade;
-    risco: boolean;
-    em: number;
-  } | null = null;
-  for (const [posicao, checkin] of ficticia.checkins.entries()) {
-    ultimo = await criarCheckin(ctx, {
+  if (ficticia.triagem) {
+    await criarTriagem(ctx, {
       pacienteId,
       organizationId,
-      escala,
-      checkin,
-      primeiro: posicao === 0,
+      protocolo,
+      configuracao,
+      triagem: ficticia.triagem,
       apelido: ficticia.apelido,
       conversa,
       agora,
     });
-  }
-
-  if (ultimo) {
-    await ctx.db.patch('pacientes', pacienteId, {
-      ultimoCheckinEm: ultimo.em,
-      ultimaPontuacao: ultimo.pontuacao,
-      ultimaPrioridade: ultimo.prioridade,
-    });
-    if (ultimo.risco) {
-      await ctx.db.insert('alertasPaciente', {
-        pacienteId,
-        organizationId,
-        tipo: 'resposta_de_risco',
-        checkinId: ultimo.id,
-        criadoEm: ultimo.em,
-      });
-    }
-    if (ultimo.prioridade === 'baixa') {
-      await ctx.db.insert('avisosEquipe', {
-        organizationId,
-        pacienteId,
-        checkinId: ultimo.id,
-        tipo: 'checkin_prioridade_baixa',
-        visto: false,
-        criadoEm: ultimo.em,
-      });
-    } else {
-      await colocarNaFila(ctx, pacienteId, ultimo.prioridade, ultimo.risco ? 'risco' : undefined);
-    }
   }
 
   if (ficticia.extra === 'palavra_de_risco') {
@@ -342,7 +321,7 @@ async function criarPaciente(
   if (ficticia.extra === 'robo_nao_entendeu') {
     const em = agora - 20 * 60 * 60 * 1000;
     const checkinId = await ctx.db.insert('checkins', {
-      ...dadosDaEscala(escala),
+      ...dadosDoProtocolo(protocolo),
       pacienteId,
       organizationId,
       motivo: 'cadastro',
@@ -354,18 +333,18 @@ async function criarPaciente(
       teveRisco: false,
       iniciadoEm: em,
     });
-    const pergunta = textoDaPergunta(
-      escala,
+    const pergunta = textoDaEtapa(
+      protocolo,
       0,
-      `Obrigado, ${ficticia.apelido}! Agora vamos fazer um check-in rápido: são ${escala.perguntas.length} perguntas. É só tocar em uma resposta.`
+      configuracao,
+      `Obrigado, ${ficticia.apelido}! Agora vou fazer algumas perguntas para a equipe de psicologia entender como você está.`
     );
-    const naoEntendi =
-      'Não entendi sua resposta. Responda com o número ou o nome de uma das opções.';
+    const naoEntendi = 'Não entendi. Responda só com um número inteiro de 0 a 10, por exemplo: 5.';
     await conversa.robo(pergunta, em);
     await conversa.paciente('oi?', em + 60_000);
-    await conversa.robo(`${naoEntendi}\n\n${textoDaPergunta(escala, 0)}`, em + 65_000);
+    await conversa.robo(textoDaEtapa(protocolo, 0, configuracao, naoEntendi, true), em + 65_000);
     await conversa.paciente('não sei responder isso', em + 120_000);
-    await conversa.robo(`${naoEntendi}\n\n${textoDaPergunta(escala, 0)}`, em + 125_000);
+    await conversa.robo(textoDaEtapa(protocolo, 0, configuracao, naoEntendi, true), em + 125_000);
     await conversa.paciente('posso falar com alguém?', em + 180_000);
     await conversa.robo(
       'Não consegui entender suas respostas. Alguém da equipe vai continuar a conversa com você por aqui.',
@@ -382,79 +361,132 @@ async function criarPaciente(
   }
 }
 
-async function criarCheckin(
+/** One finished entry triage, with the WhatsApp conversation as the bot would have it. */
+async function criarTriagem(
   ctx: MutationCtx,
   dados: {
     pacienteId: Id<'pacientes'>;
     organizationId: string;
-    escala: Doc<'escalasTriagem'>;
-    checkin: Checkin;
-    primeiro: boolean;
+    protocolo: Doc<'protocolosTriagem'>;
+    configuracao: ConfiguracaoTriagem;
+    triagem: Triagem;
     apelido: string;
     conversa: ReturnType<typeof criarConversa>;
     agora: number;
   }
 ) {
-  const { escala, checkin, conversa } = dados;
-  const inicio = dados.agora - checkin.diasAtras * DIA;
+  const { protocolo, configuracao, triagem, conversa } = dados;
+  const inicio = dados.agora - triagem.diasAtras * DIA;
   let momento = inicio;
-  const respostas: Doc<'checkins'>['respostas'] = [];
-  let pontuacao = 0;
-  let teveRisco = false;
+  const respostas: Resposta[] = [];
+  const aplicarGadPhq = triagem.gad7 !== undefined;
+  let categoria = 0;
+  const contagem = { gad7: 0, phq9: 0 };
 
-  for (const [indice, pergunta] of escala.perguntas.entries()) {
-    const opcao =
-      pergunta.opcoes[Math.min(checkin.respostas[indice] ?? 0, pergunta.opcoes.length - 1)];
+  for (const [indice, etapa] of protocolo.etapas.entries()) {
+    if (etapa.escala !== 'dt' && !aplicarGadPhq) break;
     const introducao =
       indice === 0
-        ? dados.primeiro
-          ? `Obrigado, ${dados.apelido}! Agora vamos fazer um check-in rápido: são ${escala.perguntas.length} perguntas. É só tocar em uma resposta.`
-          : `Olá, ${dados.apelido}! Hora do check-in da semana: são ${escala.perguntas.length} perguntas rápidas. É só tocar em uma resposta.`
+        ? `Obrigado, ${dados.apelido}! Agora vou fazer algumas perguntas para a equipe de psicologia entender como você está.`
         : undefined;
-    await conversa.robo(textoDaPergunta(escala, indice, introducao), momento);
+    await conversa.robo(textoDaEtapa(protocolo, indice, configuracao, introducao), momento);
     momento += 45_000;
-    await conversa.paciente(checkin.digitadas?.[indice] ?? opcao.titulo, momento);
+    const base = { perguntaId: etapa.id, escala: etapa.escala, respondidaEm: momento };
+    switch (etapa.tipo) {
+      case 'numero':
+        await conversa.paciente(triagem.dt, momento);
+        respostas.push({
+          ...base,
+          perguntaTexto: etapa.texto,
+          tipo: 'numero',
+          valor: lerNumero(triagem.dt, etapa.minimo, etapa.maximo) ?? 0,
+        });
+        break;
+      case 'problemas': {
+        const marcados = new Set(triagem.problemas?.[categoria] ?? []);
+        categoria += 1;
+        const escrito = marcados.size ? [...marcados].join(', ') : 'nenhum';
+        await conversa.paciente(escrito, momento);
+        await conversa.robo(
+          marcados.size
+            ? `Entendi que estes itens de "${etapa.categoria}" acontecem com você:\n${[...marcados].map((n) => `${n}. ${etapa.itens[n - 1].texto}`).join('\n')}\n\nEstá certo?\n1. Certo\n2. Corrigir`
+            : `Entendi que nenhum item de "${etapa.categoria}" acontece com você.\n\nEstá certo?\n1. Certo\n2. Corrigir`,
+          momento + 5_000
+        );
+        await conversa.paciente('Certo', momento + 20_000);
+        momento += 20_000;
+        respostas.push({
+          ...base,
+          perguntaTexto: etapa.categoria,
+          tipo: 'problemas',
+          itens: etapa.itens.map((item, posicao) => ({
+            id: item.id,
+            texto: item.texto,
+            sim: marcados.has(posicao + 1),
+          })),
+        });
+        break;
+      }
+      case 'aberta':
+        await conversa.paciente(triagem.outros ?? 'nenhum', momento);
+        respostas.push({
+          ...base,
+          perguntaTexto: etapa.texto,
+          tipo: 'aberta',
+          texto: triagem.outros ?? null,
+        });
+        break;
+      case 'escolha': {
+        const lista = etapa.escala === 'gad7' ? triagem.gad7 : triagem.phq9;
+        const posicao = lista?.[contagem[etapa.escala]] ?? 0;
+        contagem[etapa.escala] += 1;
+        const opcao = etapa.opcoes[Math.min(posicao, etapa.opcoes.length - 1)];
+        await conversa.paciente(opcao.titulo, momento);
+        respostas.push({
+          ...base,
+          perguntaTexto: etapa.texto,
+          tipo: 'escolha',
+          opcaoId: opcao.id,
+          opcaoTitulo: opcao.titulo,
+          pontos: opcao.pontos,
+          risco: etapa.alertaDeRisco && opcao.pontos > 0,
+        });
+        break;
+      }
+    }
     momento += 5_000;
-    respostas.push({
-      perguntaId: pergunta.id,
-      perguntaTexto: pergunta.texto,
-      opcaoId: opcao.id,
-      opcaoTitulo: opcao.titulo,
-      pontos: opcao.pontos,
-      risco: opcao.risco,
-      respondidaEm: momento,
-    });
-    pontuacao += opcao.pontos;
-    teveRisco ||= opcao.risco;
   }
 
-  const prioridade = definirPrioridade(pontuacao, teveRisco, escala.faixas);
-  await conversa.robo(mensagemFinalDoCheckin(teveRisco), momento);
+  const resultados = calcularResultados(respostas, !aplicarGadPhq);
+  await conversa.robo(mensagemFinalDoCheckin(resultados.riscoPhq9), momento);
   const id = await ctx.db.insert('checkins', {
-    ...dadosDaEscala(escala),
+    ...dadosDoProtocolo(protocolo),
     pacienteId: dados.pacienteId,
     organizationId: dados.organizationId,
-    motivo: dados.primeiro ? 'cadastro' : 'semanal',
+    motivo: 'cadastro',
     situacao: 'concluido',
-    proximaPergunta: escala.perguntas.length,
+    proximaPergunta: respostas.length,
     respostas,
-    pontuacao,
-    teveRisco,
-    prioridade,
+    resultados,
+    pontuacao: 0,
+    teveRisco: resultados.riscoPhq9,
     iniciadoEm: inicio,
     concluidoEm: momento,
   });
-  return { id, pontuacao, prioridade, risco: teveRisco, em: momento };
+  await ctx.db.patch('pacientes', dados.pacienteId, {
+    ultimoCheckinEm: momento,
+    ultimasNotas: { dt: resultados.dt, gad7: resultados.gad7, phq9: resultados.phq9 },
+  });
+  await colocarNaFila(ctx, dados.pacienteId, undefined);
+  return { id, resultados, em: momento };
 }
 
-function dadosDaEscala(escala: Doc<'escalasTriagem'>) {
+function dadosDoProtocolo(protocolo: Doc<'protocolosTriagem'>) {
   return {
-    escalaId: escala._id,
-    escalaVersao: escala.versao,
-    escalaNome: escala.nome,
-    escalaExemplo: escala.exemplo,
-    faixas: escala.faixas,
-    pontuacaoMaxima: pontuacaoMaxima(escala),
+    protocoloId: protocolo._id,
+    protocoloVersao: protocolo.versao,
+    protocoloNome: protocolo.nome,
+    textoOficialPendente: protocolo.textoOficialPendente,
   };
 }
 

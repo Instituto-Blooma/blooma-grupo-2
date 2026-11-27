@@ -15,6 +15,12 @@ import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { mutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { requireUserId } from './lib/auth';
+import {
+  buscarConfiguracao,
+  CONFIGURACAO_PADRAO,
+  configuracaoDoHospital,
+} from './lib/configuracaoTriagem';
+import { tenantsClient } from './lib/tenantsClient';
 import { ORDEM_PRIORIDADE, ORDEM_SEM_PRIORIDADE } from './lib/escala';
 import {
   mensagemDoLink,
@@ -22,6 +28,7 @@ import {
   requireMembroDoHospital,
   temConsentimentoAtual,
 } from './pacientes';
+import { ultimoProtocolo } from './triagem';
 
 const MAX_TEXTO_MENSAGEM = 3000;
 const MAX_ALERTAS_NA_FICHA = 50;
@@ -32,6 +39,8 @@ const MAX_FUNCAO_PERFIL = 40;
 const MAX_CONTAGEM = 100;
 const MAX_AVISOS_POR_VEZ = 200;
 const MAX_PALAVRAS_MOSTRADAS = 100;
+/** Settings texts go into WhatsApp messages (4096 letters with the rest of the message). */
+const MAX_TEXTO_CONFIGURACAO = 1500;
 
 // ---------------------------------------------------------------------------
 // Professional profile (name and role shown to patients)
@@ -338,7 +347,7 @@ export const ficha = query({
   args: { pacienteId: v.id('pacientes') },
   handler: async (ctx, args) => {
     const { paciente, userId } = await requireAcessoAPaciente(ctx, args.pacienteId);
-    const [alertas, alertasDeCrise, eventos, escala] = await Promise.all([
+    const [alertas, alertasDeCrise, eventos, protocolo] = await Promise.all([
       ctx.db
         .query('alertasPaciente')
         .withIndex('by_pacienteId_and_criadoEm', (q) => q.eq('pacienteId', paciente._id))
@@ -353,7 +362,7 @@ export const ficha = query({
         .withIndex('by_pacienteId_and_em', (q) => q.eq('pacienteId', paciente._id))
         .order('desc')
         .take(MAX_EVENTOS_NA_FICHA),
-      ctx.db.query('escalasTriagem').withIndex('by_publicadaEm').order('desc').first(),
+      ultimoProtocolo(ctx),
     ]);
     const perfil = await buscarPerfil(ctx, userId);
     return {
@@ -363,7 +372,9 @@ export const ficha = query({
       consentimentoEm: paciente.consentimento?.aceitoEm ?? null,
       souResponsavel: paciente.responsavelId === userId,
       tenhoPerfil: perfil !== null,
-      escalaAtual: escala ? { nome: escala.nome, exemplo: escala.exemplo } : null,
+      escalaAtual: protocolo
+        ? { nome: protocolo.nome, exemplo: protocolo.textoOficialPendente }
+        : null,
       alertas: alertas.map((alerta) => ({
         _id: alerta._id,
         tipo: alerta.tipo,
@@ -397,14 +408,17 @@ export const listarCheckins = query({
       ...pagina,
       page: pagina.page.map((checkin) => ({
         _id: checkin._id,
-        escalaNome: checkin.escalaNome,
-        escalaExemplo: checkin.escalaExemplo,
+        // Entry triage (protocol) or an OLD example-scale check-in.
+        escalaNome: checkin.protocoloNome ?? checkin.escalaNome ?? 'Triagem',
+        escalaExemplo: checkin.escalaExemplo ?? false,
+        textoOficialPendente: checkin.textoOficialPendente ?? false,
+        resultados: checkin.resultados ?? null,
         motivo: checkin.motivo,
         situacao: checkin.situacao,
         motivoInterrupcao: checkin.motivoInterrupcao ?? null,
         respostas: checkin.respostas,
         pontuacao: checkin.pontuacao,
-        pontuacaoMaxima: checkin.pontuacaoMaxima,
+        pontuacaoMaxima: checkin.pontuacaoMaxima ?? null,
         teveRisco: checkin.teveRisco,
         prioridade: checkin.prioridade ?? null,
         iniciadoEm: checkin.iniciadoEm,
@@ -554,43 +568,98 @@ export const enviarMensagem = mutation({
 // Settings page (read-only data the team should know about)
 // ---------------------------------------------------------------------------
 
-/** Hospital code for WhatsApp, current scale and consent term, number of risk words. */
+/**
+ * Settings page: WhatsApp code, entry triage protocol, hospital triage settings (editable by
+ * the team managers), consent term and number of risk words.
+ */
 export const configuracoes = query({
   args: { organizationId: v.string() },
   handler: async (ctx, args) => {
-    await requireMembroDoHospital(ctx, args.organizationId);
-    const [hospital, escala, termo, palavras] = await Promise.all([
+    const userId = await requireMembroDoHospital(ctx, args.organizationId);
+    const [hospital, protocolo, termo, palavras, configuracao, podeEditar] = await Promise.all([
       ctx.db
         .query('hospitais')
         .withIndex('by_organizationId', (q) => q.eq('organizationId', args.organizationId))
         .unique(),
-      ctx.db.query('escalasTriagem').withIndex('by_publicadaEm').order('desc').first(),
+      ultimoProtocolo(ctx),
       ctx.db.query('termosConsentimento').withIndex('by_publicadoEm').order('desc').first(),
       ctx.db.query('palavrasDeRisco').take(MAX_PALAVRAS_MOSTRADAS + 1),
+      configuracaoDoHospital(ctx, args.organizationId),
+      podeGerenciarHospital(ctx, userId, args.organizationId),
     ]);
+    const contar = (escala: 'dt' | 'gad7' | 'phq9') =>
+      protocolo?.etapas.filter((etapa) => etapa.escala === escala).length ?? 0;
     return {
       codigoWhatsApp: hospital?.codigo ?? null,
       mensagemDoLink: hospital ? mensagemDoLink(hospital.codigo) : null,
-      escala: escala
+      protocolo: protocolo
         ? {
-            nome: escala.nome,
-            versao: escala.versao,
-            exemplo: escala.exemplo,
-            perguntas: escala.perguntas.length,
-            pontuacaoMaxima: escala.perguntas.reduce(
-              (total, pergunta) =>
-                total + Math.max(...pergunta.opcoes.map((opcao) => opcao.pontos)),
-              0
-            ),
-            faixas: escala.faixas,
-            publicadaEm: escala.publicadaEm,
+            nome: protocolo.nome,
+            versao: protocolo.versao,
+            textoOficialPendente: protocolo.textoOficialPendente,
+            publicadoEm: protocolo.publicadoEm,
+            etapasDt: contar('dt'),
+            perguntasGad7: contar('gad7'),
+            perguntasPhq9: contar('phq9'),
           }
         : null,
+      configuracao,
+      padroes: CONFIGURACAO_PADRAO,
+      podeEditar,
       termo: termo ? { versao: termo.versao, publicadoEm: termo.publicadoEm } : null,
       palavrasDeRisco: {
         total: Math.min(palavras.length, MAX_PALAVRAS_MOSTRADAS),
         mais: palavras.length > MAX_PALAVRAS_MOSTRADAS,
       },
     };
+  },
+});
+
+async function podeGerenciarHospital(
+  ctx: QueryCtx | MutationCtx,
+  userId: Id<'users'>,
+  organizationId: string
+) {
+  return await tenantsClient.can(ctx, userId, 'settings:manage', organizationId);
+}
+
+/** Saves the hospital triage settings (only "Responsável pela equipe"). */
+export const salvarConfiguracoes = mutation({
+  args: {
+    organizationId: v.string(),
+    explicacaoListaProblemas: v.optional(v.string()),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const userId = await requireMembroDoHospital(ctx, args.organizationId);
+    if (!(await podeGerenciarHospital(ctx, userId, args.organizationId))) {
+      throw new ConvexError('Só a pessoa responsável pela equipe pode mudar as configurações.');
+    }
+    const mudancas: Partial<Doc<'configuracoesHospital'>> = {};
+    if (args.explicacaoListaProblemas !== undefined) {
+      const texto = args.explicacaoListaProblemas.trim();
+      if (!texto || texto.length > MAX_TEXTO_CONFIGURACAO) {
+        throw new ConvexError(
+          `O texto de explicação precisa ter de 1 a ${MAX_TEXTO_CONFIGURACAO} letras.`
+        );
+      }
+      mudancas.explicacaoListaProblemas = texto;
+    }
+    const salva = await buscarConfiguracao(ctx, args.organizationId);
+    if (salva) {
+      await ctx.db.patch('configuracoesHospital', salva._id, {
+        ...mudancas,
+        atualizadoEm: Date.now(),
+        atualizadoPor: userId,
+      });
+    } else {
+      await ctx.db.insert('configuracoesHospital', {
+        organizationId: args.organizationId,
+        ...mudancas,
+        atualizadoEm: Date.now(),
+        atualizadoPor: userId,
+      });
+    }
+    return null;
   },
 });

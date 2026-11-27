@@ -330,7 +330,11 @@ function CheckinItem({ checkin }: { checkin: Checkin }) {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold tabular-nums">
-            {checkin.pontuacao} de {pontos(checkin.pontuacaoMaxima)}
+            {checkin.pontuacaoMaxima !== null
+              ? `${checkin.pontuacao} de ${pontos(checkin.pontuacaoMaxima)}`
+              : checkin.resultados?.dt !== undefined
+                ? `DT ${checkin.resultados.dt}`
+                : ''}
           </span>
           {checkin.prioridade ? <SeloPrioridade prioridade={checkin.prioridade} /> : null}
         </div>

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { api } from '../../../convex/_generated/api';
 
 type Papel = 'admin' | 'member';
@@ -354,32 +355,32 @@ function Configuracoes({ hospital }: { hospital: Hospital }) {
             'O hospital ainda não tem código no WhatsApp.'
           )}
         </Bloco>
-        <Bloco titulo="Escala do check-in">
+        <Bloco titulo="Escalas da triagem de entrada">
           {dados === undefined ? (
             'Carregando...'
-          ) : dados.escala ? (
+          ) : dados.protocolo ? (
             <>
-              <Linha nome="Escala">{dados.escala.nome}</Linha>
-              <Linha nome="Perguntas">{dados.escala.perguntas}</Linha>
-              <Linha nome="Urgente">qualquer resposta de risco</Linha>
-              <Linha nome="Alta">
-                a partir de {dados.escala.faixas.altaAPartirDe} de {dados.escala.pontuacaoMaxima}{' '}
-                pontos
-              </Linha>
-              <Linha nome="Moderada">
-                a partir de {dados.escala.faixas.moderadaAPartirDe} pontos
-              </Linha>
-              <Linha nome="Baixa">abaixo disso (só aviso, sem caso)</Linha>
-              {dados.escala.exemplo ? (
-                <p className="rounded-md bg-lavanda-clara px-3 py-2 text-roxo-escuro">
-                  Esta é a escala de EXEMPLO. Troque pela escala escolhida pelas psicólogas.
+              <Linha nome="Protocolo">{dados.protocolo.nome}</Linha>
+              <Linha nome="Termômetro de Distresse">{dados.protocolo.etapasDt} etapas</Linha>
+              <Linha nome="GAD-7">{dados.protocolo.perguntasGad7} perguntas</Linha>
+              <Linha nome="PHQ-9">{dados.protocolo.perguntasPhq9} perguntas</Linha>
+              {dados.protocolo.textoOficialPendente ? (
+                <p className="rounded-md bg-pessego px-3 py-2 text-laranja-escuro">
+                  Os textos oficiais das escalas ainda não foram colados: as perguntas aparecem como
+                  &quot;TEXTO OFICIAL PENDENTE&quot;.
                 </p>
               ) : null}
             </>
           ) : (
-            'Nenhuma escala publicada: o primeiro check-in vai usar a escala de EXEMPLO.'
+            'Nenhum protocolo publicado: a primeira triagem vai usar o rascunho, com os textos oficiais pendentes.'
           )}
         </Bloco>
+        <ExplicacaoListaProblemas
+          key={dados?.configuracao.explicacaoListaProblemas ?? ''}
+          hospital={hospital}
+          texto={dados?.configuracao.explicacaoListaProblemas ?? ''}
+          podeEditar={dados?.podeEditar ?? false}
+        />
         <Bloco titulo="Termo e palavras de risco">
           {dados === undefined ? (
             'Carregando...'
@@ -468,6 +469,58 @@ function Linha({ nome, children }: { nome: string; children: ReactNode }) {
       <span className="text-muted-foreground">{nome}</span>
       <span className="text-right font-medium">{children}</span>
     </p>
+  );
+}
+
+/** Text the bot sends before the first DT problem category (editable by the team manager). */
+function ExplicacaoListaProblemas({
+  hospital,
+  texto,
+  podeEditar,
+}: {
+  hospital: Hospital;
+  texto: string;
+  podeEditar: boolean;
+}) {
+  const salvar = useMutation(api.equipe.salvarConfiguracoes);
+  const [valor, setValor] = useState(texto);
+  const [salvando, setSalvando] = useState(false);
+  return (
+    <Bloco titulo="Explicação da lista de problemas (DT)">
+      <p className="text-muted-foreground">
+        O robô manda este texto antes do primeiro grupo de problemas. Proposta inicial, para as
+        psicólogas revisarem.
+      </p>
+      {podeEditar ? (
+        <form
+          className="space-y-3"
+          onSubmit={(evento) => {
+            evento.preventDefault();
+            setSalvando(true);
+            void executarComAviso(
+              () =>
+                salvar({
+                  organizationId: hospital.organizationId,
+                  explicacaoListaProblemas: valor,
+                }),
+              'Texto salvo.'
+            ).finally(() => setSalvando(false));
+          }}
+        >
+          <Textarea
+            aria-label="Explicação da lista de problemas"
+            rows={9}
+            value={valor}
+            onChange={(evento) => setValor(evento.target.value)}
+          />
+          <Button type="submit" disabled={salvando || !valor.trim() || valor === texto}>
+            Salvar texto
+          </Button>
+        </form>
+      ) : (
+        <p className="whitespace-pre-wrap rounded-md border p-3">{texto}</p>
+      )}
+    </Bloco>
   );
 }
 

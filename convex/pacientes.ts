@@ -672,6 +672,8 @@ const TABELAS_DE_CONFIGURACAO = [
   'palavrasDeRisco',
   'termosConsentimento',
   'escalasTriagem',
+  'protocolosTriagem',
+  'configuracoesHospital',
 ] as const;
 
 /**
