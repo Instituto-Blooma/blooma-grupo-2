@@ -354,7 +354,9 @@ function CheckinItem({ checkin }: { checkin: Checkin }) {
               )}
             >
               <span>
-                <span className="text-muted-foreground">{indice + 1}. </span>
+                <span className={resposta.risco ? 'opacity-80' : 'text-muted-foreground'}>
+                  {indice + 1}.{' '}
+                </span>
                 {resposta.perguntaTexto}
                 <br />
                 <span className="font-medium">{resposta.opcaoTitulo}</span>
@@ -364,7 +366,12 @@ function CheckinItem({ checkin }: { checkin: Checkin }) {
                   </span>
                 ) : null}
               </span>
-              <span className="shrink-0 tabular-nums text-muted-foreground">
+              <span
+                className={cn(
+                  'shrink-0 tabular-nums',
+                  resposta.risco ? 'opacity-80' : 'text-muted-foreground'
+                )}
+              >
                 {resposta.pontos} pt
               </span>
             </li>

@@ -78,7 +78,7 @@ export function FundoDodecagonos({ className }: { className?: string }) {
         <svg
           key={`${forma.left}-${forma.top}`}
           viewBox="0 0 100 100"
-          className="absolute opacity-40"
+          className="absolute opacity-40 dark:opacity-15"
           style={{
             left: forma.left,
             top: forma.top,
