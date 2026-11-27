@@ -49,6 +49,8 @@ export type ConfiguracaoTriagem = {
   regra: Regra;
   /** GAD-7 and PHQ-9 only when the DT is at or above its cut-off (decided 27/11). */
   gadPhqSomenteAcimaDoCorteDT: boolean;
+  /** Weekly re-check (Mondays 9h). OFF: the MVP is the entry triage only (decided 26/11). */
+  checkinSemanalAtivo: boolean;
 };
 
 export const CONFIGURACAO_PADRAO: ConfiguracaoTriagem = {
@@ -62,6 +64,7 @@ export const CONFIGURACAO_PADRAO: ConfiguracaoTriagem = {
     altaSeTresAcimaDoCorte: true,
   },
   gadPhqSomenteAcimaDoCorteDT: true,
+  checkinSemanalAtivo: false,
 };
 
 export async function buscarConfiguracao(ctx: QueryCtx | MutationCtx, organizationId: string) {
@@ -84,5 +87,6 @@ export async function configuracaoDoHospital(
     regra: salva?.regra ?? CONFIGURACAO_PADRAO.regra,
     gadPhqSomenteAcimaDoCorteDT:
       salva?.gadPhqSomenteAcimaDoCorteDT ?? CONFIGURACAO_PADRAO.gadPhqSomenteAcimaDoCorteDT,
+    checkinSemanalAtivo: salva?.checkinSemanalAtivo ?? CONFIGURACAO_PADRAO.checkinSemanalAtivo,
   };
 }

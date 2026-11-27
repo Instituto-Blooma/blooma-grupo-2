@@ -633,6 +633,7 @@ export const salvarConfiguracoes = mutation({
     cortes: v.optional(cortesValidator),
     regra: v.optional(regraValidator),
     gadPhqSomenteAcimaDoCorteDT: v.optional(v.boolean()),
+    checkinSemanalAtivo: v.optional(v.boolean()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -674,6 +675,9 @@ export const salvarConfiguracoes = mutation({
         throw new ConvexError('Regra inválida: GAD-7 de 0 a 21 e PHQ-9 de 0 a 27.');
       }
       mudancas.regra = args.regra;
+    }
+    if (args.checkinSemanalAtivo !== undefined) {
+      mudancas.checkinSemanalAtivo = args.checkinSemanalAtivo;
     }
     if (args.gadPhqSomenteAcimaDoCorteDT !== undefined) {
       mudancas.gadPhqSomenteAcimaDoCorteDT = args.gadPhqSomenteAcimaDoCorteDT;

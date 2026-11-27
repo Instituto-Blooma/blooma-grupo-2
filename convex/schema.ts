@@ -242,6 +242,7 @@ const schema = defineSchema({
     cortes: v.optional(cortesValidator),
     regra: v.optional(regraValidator),
     gadPhqSomenteAcimaDoCorteDT: v.optional(v.boolean()),
+    checkinSemanalAtivo: v.optional(v.boolean()),
     atualizadoEm: v.number(),
     atualizadoPor: v.optional(v.id('users')),
   }).index('by_organizationId', ['organizationId']),

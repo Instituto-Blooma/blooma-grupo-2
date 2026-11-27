@@ -5,7 +5,8 @@
  * 2. Triage: the current protocol (`protocolosTriagem`, convex/lib/protocolo.ts), one step at a
  *    time: the Distress Thermometer (number 0-10, problem list by category with "Certo" /
  *    "Corrigir", "Outros problemas"), then GAD-7 and PHQ-9 (list of options).
- * 3. Weekly re-check (crons.ts) exists but the MVP is the entry triage only.
+ * 3. Weekly re-check (crons.ts) exists but is OFF by setting (`checkinSemanalAtivo`): the MVP is
+ *    the entry triage only.
  *
  * A finished triage opens a case in the team queue (or updates the open one), or only a notice
  * for the team when the priority is low. An open case never loses priority by itself.
@@ -676,7 +677,16 @@ export const iniciarCheckinsDaSemana = internalMutation({
     const pagina = await ctx.db
       .query('pacientes')
       .paginate({ numItems: LOTE_SEMANAL, cursor: args.cursor });
+    // Only hospitals that turned the weekly re-check on (off by default: entry triage only).
+    const ativoPorHospital = new Map<string, boolean>();
     for (const paciente of pagina.page) {
+      const hospital = paciente.organizationId;
+      if (!hospital) continue;
+      if (!ativoPorHospital.has(hospital)) {
+        const configuracao = await configuracaoDoHospital(ctx, hospital);
+        ativoPorHospital.set(hospital, configuracao.checkinSemanalAtivo);
+      }
+      if (!ativoPorHospital.get(hospital)) continue;
       if (await podeReceberCheckin(ctx, paciente)) {
         const ola = paciente.apelido ? `Olá, ${paciente.apelido}!` : 'Olá!';
         await iniciarTriagem(ctx, paciente._id, 'semanal', ola);

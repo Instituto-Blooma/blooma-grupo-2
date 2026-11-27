@@ -404,7 +404,11 @@ function Configuracoes({ hospital }: { hospital: Hospital }) {
                 {dados.palavrasDeRisco.total}
                 {dados.palavrasDeRisco.mais ? '+' : ''} cadastradas
               </Linha>
-              <Linha nome="Check-in semanal">segunda-feira, 9h (Brasília)</Linha>
+              <Linha nome="Check-in semanal (segunda, 9h)">
+                {dados.configuracao.checkinSemanalAtivo
+                  ? 'ligado'
+                  : 'desligado: só a triagem de entrada'}
+              </Linha>
             </>
           )}
         </Bloco>
