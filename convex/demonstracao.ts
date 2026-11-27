@@ -13,7 +13,13 @@ import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import { configuracaoDoHospital, type ConfiguracaoTriagem } from './lib/configuracaoTriagem';
-import { calcularResultados, lerNumero, PROTOCOLO_RASCUNHO, type Resposta } from './lib/protocolo';
+import {
+  calcularResultados,
+  definirPrioridadeTriagem,
+  lerNumero,
+  PROTOCOLO_RASCUNHO,
+  type Resposta,
+} from './lib/protocolo';
 import { normalizarTexto } from './lib/texto';
 import { tenantsClient } from './lib/tenantsClient';
 import { MENSAGEM_CRISE } from './pacientes';
@@ -458,6 +464,7 @@ async function criarTriagem(
   }
 
   const resultados = calcularResultados(respostas, !aplicarGadPhq);
+  const prioridade = definirPrioridadeTriagem(resultados, configuracao.cortes, configuracao.regra);
   await conversa.robo(mensagemFinalDoCheckin(resultados.riscoPhq9), momento);
   const id = await ctx.db.insert('checkins', {
     ...dadosDoProtocolo(protocolo),
@@ -468,6 +475,7 @@ async function criarTriagem(
     proximaPergunta: respostas.length,
     respostas,
     resultados,
+    prioridade,
     pontuacao: 0,
     teveRisco: resultados.riscoPhq9,
     iniciadoEm: inicio,
@@ -475,9 +483,21 @@ async function criarTriagem(
   });
   await ctx.db.patch('pacientes', dados.pacienteId, {
     ultimoCheckinEm: momento,
+    ultimaPrioridade: prioridade,
     ultimasNotas: { dt: resultados.dt, gad7: resultados.gad7, phq9: resultados.phq9 },
   });
-  await colocarNaFila(ctx, dados.pacienteId, undefined);
+  if (prioridade === 'baixa') {
+    await ctx.db.insert('avisosEquipe', {
+      organizationId: dados.organizationId,
+      pacienteId: dados.pacienteId,
+      checkinId: id,
+      tipo: 'checkin_prioridade_baixa',
+      visto: false,
+      criadoEm: momento,
+    });
+  } else {
+    await colocarNaFila(ctx, dados.pacienteId, prioridade);
+  }
   return { id, resultados, em: momento };
 }
 

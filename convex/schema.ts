@@ -3,6 +3,7 @@ import { authTables } from '@convex-dev/auth/server';
 import { v } from 'convex/values';
 import { conteudoEscalaValidator, faixasValidator, prioridadeValidator } from './lib/escala';
 import { conteudoProtocoloValidator, respostaValidator } from './lib/protocolo';
+import { cortesValidator, regraValidator } from './lib/configuracaoTriagem';
 
 /** One option of a menu sent to a patient (button or list row). Used by `convex/canal.ts`. */
 export const opcaoMenuValidator = v.object({
@@ -238,6 +239,9 @@ const schema = defineSchema({
   configuracoesHospital: defineTable({
     organizationId: v.string(),
     explicacaoListaProblemas: v.optional(v.string()),
+    cortes: v.optional(cortesValidator),
+    regra: v.optional(regraValidator),
+    gadPhqSomenteAcimaDoCorteDT: v.optional(v.boolean()),
     atualizadoEm: v.number(),
     atualizadoPor: v.optional(v.id('users')),
   }).index('by_organizationId', ['organizationId']),

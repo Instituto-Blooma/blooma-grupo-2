@@ -14,6 +14,8 @@
  * "[TEXTO OFICIAL PENDENTE ...]" placeholders, until the official texts are published.
  */
 import { ConvexError, v, type Infer } from 'convex/values';
+import type { Cortes, Regra } from './configuracaoTriagem';
+import type { Prioridade } from './escala';
 import { normalizarTexto } from './texto';
 
 export const escalaValidator = v.union(v.literal('dt'), v.literal('gad7'), v.literal('phq9'));
@@ -343,4 +345,52 @@ export function calcularResultados(respostas: Resposta[], gadPhqNaoAplicados: bo
     riscoPhq9: respostas.some((r) => r.escala === 'phq9' && r.risco === true),
     gadPhqNaoAplicados,
   };
+}
+
+/** Which scales are at or above their cut-off (a scale not applied is never above). */
+export function acimaDoCorte(resultados: Resultados, cortes: Cortes) {
+  const acima = (nota: number | undefined, corte: number) => nota !== undefined && nota >= corte;
+  return {
+    dt: acima(resultados.dt, cortes.dt),
+    gad7: acima(resultados.gad7, cortes.gad7),
+    phq9: acima(resultados.phq9, cortes.phq9),
+  };
+}
+
+/** The (provisional) rule of convex/lib/configuracaoTriagem.ts: same scores, same priority. */
+export function definirPrioridadeTriagem(
+  resultados: Resultados,
+  cortes: Cortes,
+  regra: Regra
+): Prioridade {
+  if (resultados.riscoPhq9) return 'urgente';
+  const acima = acimaDoCorte(resultados, cortes);
+  const alta =
+    (resultados.gad7 ?? -1) >= regra.altaGad7AoMenos ||
+    (resultados.phq9 ?? -1) >= regra.altaPhq9AoMenos ||
+    (regra.altaSeTresAcimaDoCorte && acima.dt && acima.gad7 && acima.phq9);
+  if (alta) return 'alta';
+  if (acima.dt || acima.gad7 || acima.phq9) return 'moderada';
+  return 'baixa';
+}
+
+/** Published score bands of GAD-7 and PHQ-9 (shown on the record; to confirm with the team). */
+export const FAIXAS: Record<'gad7' | 'phq9', Array<{ aPartirDe: number; nome: string }>> = {
+  gad7: [
+    { aPartirDe: 0, nome: 'mínima' },
+    { aPartirDe: 5, nome: 'leve' },
+    { aPartirDe: 10, nome: 'moderada' },
+    { aPartirDe: 15, nome: 'grave' },
+  ],
+  phq9: [
+    { aPartirDe: 0, nome: 'mínima' },
+    { aPartirDe: 5, nome: 'leve' },
+    { aPartirDe: 10, nome: 'moderada' },
+    { aPartirDe: 15, nome: 'moderadamente grave' },
+    { aPartirDe: 20, nome: 'grave' },
+  ],
+};
+
+export function faixaDaNota(escala: 'gad7' | 'phq9', nota: number) {
+  return [...FAIXAS[escala]].toReversed().find((faixa) => nota >= faixa.aPartirDe)?.nome ?? '';
 }

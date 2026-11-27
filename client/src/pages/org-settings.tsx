@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import type { FunctionReturnType } from 'convex/server';
 import { api } from '../../../convex/_generated/api';
 
 type Papel = 'admin' | 'member';
@@ -381,6 +382,14 @@ function Configuracoes({ hospital }: { hospital: Hospital }) {
           texto={dados?.configuracao.explicacaoListaProblemas ?? ''}
           podeEditar={dados?.podeEditar ?? false}
         />
+        {dados ? (
+          <NotasDeCorte
+            key={JSON.stringify(dados.configuracao)}
+            hospital={hospital}
+            configuracao={dados.configuracao}
+            podeEditar={dados.podeEditar}
+          />
+        ) : null}
         <Bloco titulo="Termo e palavras de risco">
           {dados === undefined ? (
             'Carregando...'
@@ -520,6 +529,174 @@ function ExplicacaoListaProblemas({
       ) : (
         <p className="whitespace-pre-wrap rounded-md border p-3">{texto}</p>
       )}
+    </Bloco>
+  );
+}
+
+type ConfiguracaoTela = FunctionReturnType<typeof api.equipe.configuracoes>['configuracao'];
+
+/** Cut-off scores, the (provisional) priority rule and the sequence of the scales. */
+function NotasDeCorte({
+  hospital,
+  configuracao,
+  podeEditar,
+}: {
+  hospital: Hospital;
+  configuracao: ConfiguracaoTela;
+  podeEditar: boolean;
+}) {
+  const salvar = useMutation(api.equipe.salvarConfiguracoes);
+  const [cortes, setCortes] = useState(configuracao.cortes);
+  const [regra, setRegra] = useState(configuracao.regra);
+  const [somenteAcima, setSomenteAcima] = useState(configuracao.gadPhqSomenteAcimaDoCorteDT);
+  const [salvando, setSalvando] = useState(false);
+
+  const numero = (
+    valor: number,
+    aoMudar: (novo: number) => void,
+    maximo: number,
+    rotulo: string
+  ) => (
+    <Input
+      type="number"
+      min={0}
+      max={maximo}
+      step={1}
+      aria-label={rotulo}
+      className="h-8 w-20"
+      disabled={!podeEditar}
+      value={valor}
+      onChange={(evento) => aoMudar(Number(evento.target.value))}
+    />
+  );
+  const caixa = (marcada: boolean, aoMudar: (nova: boolean) => void, rotulo: string) => (
+    <label className="flex items-center gap-2">
+      <input
+        type="checkbox"
+        className="h-4 w-4 accent-[hsl(var(--roxo))]"
+        disabled={!podeEditar}
+        checked={marcada}
+        onChange={(evento) => aoMudar(evento.target.checked)}
+      />
+      {rotulo}
+    </label>
+  );
+
+  const enviar = (evento: FormEvent) => {
+    evento.preventDefault();
+    setSalvando(true);
+    void executarComAviso(
+      () =>
+        salvar({
+          organizationId: hospital.organizationId,
+          cortes,
+          regra,
+          gadPhqSomenteAcimaDoCorteDT: somenteAcima,
+        }),
+      'Notas de corte e regra salvas.'
+    ).finally(() => setSalvando(false));
+  };
+
+  return (
+    <Bloco titulo="Notas de corte e prioridade">
+      <form onSubmit={enviar} className="space-y-4">
+        <div className="space-y-2">
+          <p className="font-semibold">Notas de corte</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span>Termômetro de Distresse (manual)</span>
+            {numero(cortes.dt, (dt) => setCortes({ ...cortes, dt }), 10, 'Corte da DT')}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span>GAD-7 {cortes.gad7Confirmado ? '' : '(a confirmar com as psicólogas)'}</span>
+            {numero(cortes.gad7, (gad7) => setCortes({ ...cortes, gad7 }), 21, 'Corte do GAD-7')}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span>PHQ-9 {cortes.phq9Confirmado ? '' : '(a confirmar com as psicólogas)'}</span>
+            {numero(cortes.phq9, (phq9) => setCortes({ ...cortes, phq9 }), 27, 'Corte do PHQ-9')}
+          </div>
+          {podeEditar ? (
+            <div className="flex flex-wrap gap-4 text-muted-foreground">
+              {caixa(
+                cortes.gad7Confirmado,
+                (v) => setCortes({ ...cortes, gad7Confirmado: v }),
+                'Corte do GAD-7 confirmado'
+              )}
+              {caixa(
+                cortes.phq9Confirmado,
+                (v) => setCortes({ ...cortes, phq9Confirmado: v }),
+                'Corte do PHQ-9 confirmado'
+              )}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="space-y-2 border-t pt-3">
+          <p className="font-semibold">
+            Regra de prioridade {regra.provisoria ? '(PROVISÓRIA)' : ''}
+          </p>
+          <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
+            <li>
+              Urgente: pergunta 9 do PHQ-9 diferente de &quot;Nenhuma vez&quot;, ou palavra de
+              risco.
+            </li>
+            <li className="flex flex-wrap items-center gap-2">
+              Alta: GAD-7 a partir de
+              {numero(
+                regra.altaGad7AoMenos,
+                (n) => setRegra({ ...regra, altaGad7AoMenos: n }),
+                21,
+                'GAD-7 para alta'
+              )}
+              ou PHQ-9 a partir de
+              {numero(
+                regra.altaPhq9AoMenos,
+                (n) => setRegra({ ...regra, altaPhq9AoMenos: n }),
+                27,
+                'PHQ-9 para alta'
+              )}
+            </li>
+            <li>
+              {caixa(
+                regra.altaSeTresAcimaDoCorte,
+                (v) => setRegra({ ...regra, altaSeTresAcimaDoCorte: v }),
+                'Também alta: as 3 escalas acima do corte'
+              )}
+            </li>
+            <li>Moderada: qualquer escala acima do corte.</li>
+            <li>Baixa: tudo abaixo dos cortes (só aviso, sem caso).</li>
+          </ul>
+          {podeEditar
+            ? caixa(
+                regra.provisoria,
+                (v) => setRegra({ ...regra, provisoria: v }),
+                'Regra ainda provisória'
+              )
+            : null}
+        </div>
+
+        <div className="space-y-2 border-t pt-3">
+          <p className="font-semibold">Ordem das escalas</p>
+          {caixa(
+            somenteAcima,
+            setSomenteAcima,
+            'GAD-7 e PHQ-9 só para quem tiver a DT acima do corte'
+          )}
+          {somenteAcima ? (
+            <p className="rounded-md bg-pessego px-3 py-2 text-laranja-escuro">
+              Atenção: quem tiver a DT abaixo de {cortes.dt} não responde a pergunta 9 do PHQ-9 (a
+              do risco).
+            </p>
+          ) : null}
+        </div>
+
+        {podeEditar ? (
+          <Button type="submit" disabled={salvando}>
+            {salvando ? 'Salvando...' : 'Salvar notas e regra'}
+          </Button>
+        ) : (
+          <p className="text-muted-foreground">Só a pessoa responsável pela equipe pode mudar.</p>
+        )}
+      </form>
     </Bloco>
   );
 }

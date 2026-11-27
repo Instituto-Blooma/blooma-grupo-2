@@ -28,6 +28,7 @@ import {
 import {
   calcularResultados,
   conteudoProtocoloValidator,
+  definirPrioridadeTriagem,
   lerItensMarcados,
   lerNumero,
   lerTextoAberto,
@@ -508,6 +509,21 @@ async function avancar(
 ) {
   const respostas = [...checkin.respostas, resposta];
   const proxima = checkin.proximaPergunta + 1;
+  // End of the DT: GAD-7 and PHQ-9 only for DT at or above the cut-off (when so configured).
+  const etapaAtual = protocolo.etapas[checkin.proximaPergunta];
+  const proximaEtapa = protocolo.etapas[proxima];
+  if (
+    configuracao.gadPhqSomenteAcimaDoCorteDT &&
+    etapaAtual?.escala === 'dt' &&
+    proximaEtapa &&
+    proximaEtapa.escala !== 'dt'
+  ) {
+    const { dt } = calcularResultados(respostas, false);
+    if (dt === undefined || dt < configuracao.cortes.dt) {
+      await concluirTriagem(ctx, paciente, checkin, respostas, configuracao, true);
+      return;
+    }
+  }
   if (proxima < protocolo.etapas.length) {
     await ctx.db.patch('checkins', checkin._id, {
       respostas,
@@ -518,7 +534,7 @@ async function avancar(
     await enviarEtapa(ctx, paciente.telefone, protocolo, proxima, configuracao);
     return;
   }
-  await concluirTriagem(ctx, paciente, checkin, respostas, false);
+  await concluirTriagem(ctx, paciente, checkin, respostas, configuracao, false);
 }
 
 async function concluirTriagem(
@@ -526,10 +542,12 @@ async function concluirTriagem(
   paciente: Doc<'pacientes'>,
   checkin: Doc<'checkins'>,
   respostas: Resposta[],
+  configuracao: ConfiguracaoTriagem,
   gadPhqNaoAplicados: boolean
 ) {
   const agora = Date.now();
   const resultados = calcularResultados(respostas, gadPhqNaoAplicados);
+  const prioridade = definirPrioridadeTriagem(resultados, configuracao.cortes, configuracao.regra);
   await ctx.db.patch('checkins', checkin._id, {
     respostas,
     proximaPergunta: checkin.proximaPergunta + 1,
@@ -537,16 +555,30 @@ async function concluirTriagem(
     tentativasInvalidas: undefined,
     resultados,
     teveRisco: resultados.riscoPhq9,
+    prioridade,
     situacao: 'concluido',
     concluidoEm: agora,
   });
   await ctx.db.patch('pacientes', paciente._id, {
     checkinAtualId: undefined,
     ultimoCheckinEm: agora,
+    ultimaPrioridade: prioridade,
     ultimasNotas: { dt: resultados.dt, gad7: resultados.gad7, phq9: resultados.phq9 },
   });
-  // The rule that turns the scores into a priority comes from the hospital settings.
-  await colocarNaFila(ctx, paciente._id, undefined);
+  const atualizada = await ctx.db.get('pacientes', paciente._id);
+  if (prioridade === 'baixa' && atualizada && !atualizada.naFila) {
+    // Nothing to solve: no case is opened. The team gets a notice and the answers stay on record.
+    await ctx.db.insert('avisosEquipe', {
+      organizationId: checkin.organizationId,
+      pacienteId: paciente._id,
+      checkinId: checkin._id,
+      tipo: 'checkin_prioridade_baixa',
+      visto: false,
+      criadoEm: agora,
+    });
+  } else {
+    await colocarNaFila(ctx, paciente._id, prioridade);
+  }
   await enviarTexto(ctx, paciente.telefone, mensagemFinalDoCheckin(resultados.riscoPhq9));
 }
 

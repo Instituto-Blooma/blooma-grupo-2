@@ -19,6 +19,8 @@ import {
   buscarConfiguracao,
   CONFIGURACAO_PADRAO,
   configuracaoDoHospital,
+  cortesValidator,
+  regraValidator,
 } from './lib/configuracaoTriagem';
 import { tenantsClient } from './lib/tenantsClient';
 import { ORDEM_PRIORIDADE, ORDEM_SEM_PRIORIDADE } from './lib/escala';
@@ -628,6 +630,9 @@ export const salvarConfiguracoes = mutation({
   args: {
     organizationId: v.string(),
     explicacaoListaProblemas: v.optional(v.string()),
+    cortes: v.optional(cortesValidator),
+    regra: v.optional(regraValidator),
+    gadPhqSomenteAcimaDoCorteDT: v.optional(v.boolean()),
   },
   returns: v.null(),
   handler: async (ctx, args) => {
@@ -644,6 +649,34 @@ export const salvarConfiguracoes = mutation({
         );
       }
       mudancas.explicacaoListaProblemas = texto;
+    }
+    if (args.cortes) {
+      const { dt, gad7, phq9 } = args.cortes;
+      const dentro = (nota: number, maximo: number) =>
+        Number.isInteger(nota) && nota >= 0 && nota <= maximo;
+      if (!dentro(dt, 10) || !dentro(gad7, 21) || !dentro(phq9, 27)) {
+        throw new ConvexError(
+          'Notas de corte inválidas: DT de 0 a 10, GAD-7 de 0 a 21 e PHQ-9 de 0 a 27.'
+        );
+      }
+      mudancas.cortes = args.cortes;
+    }
+    if (args.regra) {
+      const { altaGad7AoMenos, altaPhq9AoMenos } = args.regra;
+      if (
+        !Number.isInteger(altaGad7AoMenos) ||
+        altaGad7AoMenos < 0 ||
+        altaGad7AoMenos > 21 ||
+        !Number.isInteger(altaPhq9AoMenos) ||
+        altaPhq9AoMenos < 0 ||
+        altaPhq9AoMenos > 27
+      ) {
+        throw new ConvexError('Regra inválida: GAD-7 de 0 a 21 e PHQ-9 de 0 a 27.');
+      }
+      mudancas.regra = args.regra;
+    }
+    if (args.gadPhqSomenteAcimaDoCorteDT !== undefined) {
+      mudancas.gadPhqSomenteAcimaDoCorteDT = args.gadPhqSomenteAcimaDoCorteDT;
     }
     const salva = await buscarConfiguracao(ctx, args.organizationId);
     if (salva) {
