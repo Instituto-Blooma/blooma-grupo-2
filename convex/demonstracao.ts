@@ -415,8 +415,8 @@ async function criarTriagem(
         await conversa.paciente(escrito, momento);
         await conversa.robo(
           marcados.size
-            ? `Entendi que estes itens de "${etapa.categoria}" acontecem com você:\n${[...marcados].map((n) => `${n}. ${etapa.itens[n - 1].texto}`).join('\n')}\n\nEstá certo?\n1. Certo\n2. Corrigir`
-            : `Entendi que nenhum item de "${etapa.categoria}" acontece com você.\n\nEstá certo?\n1. Certo\n2. Corrigir`,
+            ? `Entendi que estes itens de "${etapa.categoria}" acontecem com você:\n${[...marcados].map((n) => `${n}. ${etapa.itens[n - 1].texto}`).join('\n')}\n\nVocê quer corrigir alguma resposta sua?\n1. Certo\n2. Corrigir`
+            : `Entendi que nenhum item de "${etapa.categoria}" acontece com você.\n\nVocê quer corrigir alguma resposta sua?\n1. Certo\n2. Corrigir`,
           momento + 5_000
         );
         await conversa.paciente('Certo', momento + 20_000);

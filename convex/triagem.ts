@@ -466,7 +466,9 @@ async function tratarRespostaDaTriagem(
         : [`Entendi que nenhum item de "${etapa.categoria}" acontece com você.`];
       await ctx.runMutation(internal.canal.enviarBotoes, {
         telefone: paciente.telefone,
-        texto: [...entendido, '', 'Está certo?'].join('\n').slice(0, MAX_CORPO_PERGUNTA),
+        texto: [...entendido, '', 'Você quer corrigir alguma resposta sua?']
+          .join('\n')
+          .slice(0, MAX_CORPO_PERGUNTA),
         opcoes: [
           { id: `${prefixoDaEtapa}certo`, titulo: 'Certo' },
           { id: `${prefixoDaEtapa}corrigir`, titulo: 'Corrigir' },
