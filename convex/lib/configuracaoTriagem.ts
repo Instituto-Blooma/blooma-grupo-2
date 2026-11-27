@@ -16,6 +16,18 @@ export const EXPLICACAO_LISTA_PROBLEMAS_PADRAO = [
   'Se nenhum item do grupo acontecer com você, escreva "nenhum".',
 ].join('\n');
 
+/**
+ * Fixed reply when the patient writes something that is not an answer (there is no channel for
+ * her to ask for care from home). The hospital channel is still to be defined: placeholder.
+ */
+export const MENSAGEM_LIVRE_PADRAO = [
+  'Este número é só para a triagem e não é acompanhado em tempo real.',
+  '',
+  'Para falar com a equipe do hospital, use [canal de atendimento do hospital].',
+  '',
+  'Se você está em perigo, ligue 188 (CVV) ou 192 (SAMU).',
+].join('\n');
+
 /** Cut-off scores: at or above the cut-off the scale is "above the cut". */
 export const cortesValidator = v.object({
   dt: v.number(),
@@ -45,6 +57,7 @@ export type Regra = Infer<typeof regraValidator>;
 
 export type ConfiguracaoTriagem = {
   explicacaoListaProblemas: string;
+  mensagemLivre: string;
   cortes: Cortes;
   regra: Regra;
   /** GAD-7 and PHQ-9 only when the DT is at or above its cut-off (decided 27/11). */
@@ -55,6 +68,7 @@ export type ConfiguracaoTriagem = {
 
 export const CONFIGURACAO_PADRAO: ConfiguracaoTriagem = {
   explicacaoListaProblemas: EXPLICACAO_LISTA_PROBLEMAS_PADRAO,
+  mensagemLivre: MENSAGEM_LIVRE_PADRAO,
   // DT: cut-off 4 from the manual. GAD-7 and PHQ-9: 10 (moderate band), to be confirmed.
   cortes: { dt: 4, gad7: 10, phq9: 10, gad7Confirmado: false, phq9Confirmado: false },
   regra: {
@@ -83,6 +97,7 @@ export async function configuracaoDoHospital(
   return {
     explicacaoListaProblemas:
       salva?.explicacaoListaProblemas ?? CONFIGURACAO_PADRAO.explicacaoListaProblemas,
+    mensagemLivre: salva?.mensagemLivre ?? CONFIGURACAO_PADRAO.mensagemLivre,
     cortes: salva?.cortes ?? CONFIGURACAO_PADRAO.cortes,
     regra: salva?.regra ?? CONFIGURACAO_PADRAO.regra,
     gadPhqSomenteAcimaDoCorteDT:

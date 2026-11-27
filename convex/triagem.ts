@@ -56,7 +56,10 @@ const PERGUNTA_PRONTUARIO =
   'Qual é o número do seu prontuário no hospital? Ele aparece na carteirinha ou nos papéis do hospital. Se não souber, responda NÃO SEI.';
 const PEDIR_TEXTO = 'Não consegui ler sua resposta. Por favor, escreva com letras.';
 const MENSAGEM_FIM_CHECKIN =
-  'Obrigado por responder! A equipe de psicologia do hospital vai ver suas respostas. Se quiser falar com a equipe, é só escrever aqui.';
+  'Obrigado por responder! A equipe de psicologia do hospital vai ver suas respostas.';
+/** The fixed reply is not sent while the team is talking to her (message in the last 24h). */
+const JANELA_CONVERSA_EQUIPE_MS = 24 * 60 * 60 * 1000;
+const MENSAGENS_OLHADAS = 30;
 const MENSAGEM_EQUIPE_VAI_AJUDAR =
   'Não consegui entender suas respostas. Alguém da equipe vai continuar a conversa com você por aqui.';
 /** Typed answers in a row that could not be read before the team takes over. */
@@ -98,7 +101,24 @@ export async function tratarMensagemDepoisDoAceite(
     await ctx.db.patch('pacientes', paciente._id, { etapaCadastro: 'nome' });
     await enviarTexto(ctx, paciente.telefone, PERGUNTA_NOME);
   }
-  // Otherwise it is a message for the team: it is in the history and the team answers it there.
+  // Not an answer to anything: fixed reply with the hospital channel (editable on Configurações),
+  // unless someone from the team wrote to her in the last 24h (that conversation is on the site).
+  else if (paciente.organizationId && !(await equipeConversouRecentemente(ctx, paciente))) {
+    const configuracao = await configuracaoDoHospital(ctx, paciente.organizationId);
+    await enviarTexto(ctx, paciente.telefone, configuracao.mensagemLivre);
+  }
+}
+
+async function equipeConversouRecentemente(ctx: MutationCtx, paciente: Doc<'pacientes'>) {
+  const desde = Date.now() - JANELA_CONVERSA_EQUIPE_MS;
+  const recentes = await ctx.db
+    .query('mensagensConversa')
+    .withIndex('by_pacienteId_and_enviadaEm', (q) =>
+      q.eq('pacienteId', paciente._id).gte('enviadaEm', desde)
+    )
+    .order('desc')
+    .take(MENSAGENS_OLHADAS);
+  return recentes.some((mensagem) => mensagem.remetente === 'profissional');
 }
 
 /** She wrote a risk word (the crisis message was already sent by convex/pacientes.ts). */

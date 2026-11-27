@@ -630,6 +630,7 @@ export const salvarConfiguracoes = mutation({
   args: {
     organizationId: v.string(),
     explicacaoListaProblemas: v.optional(v.string()),
+    mensagemLivre: v.optional(v.string()),
     cortes: v.optional(cortesValidator),
     regra: v.optional(regraValidator),
     gadPhqSomenteAcimaDoCorteDT: v.optional(v.boolean()),
@@ -650,6 +651,15 @@ export const salvarConfiguracoes = mutation({
         );
       }
       mudancas.explicacaoListaProblemas = texto;
+    }
+    if (args.mensagemLivre !== undefined) {
+      const texto = args.mensagemLivre.trim();
+      if (!texto || texto.length > MAX_TEXTO_CONFIGURACAO) {
+        throw new ConvexError(
+          `A mensagem livre precisa ter de 1 a ${MAX_TEXTO_CONFIGURACAO} letras.`
+        );
+      }
+      mudancas.mensagemLivre = texto;
     }
     if (args.cortes) {
       const { dt, gad7, phq9 } = args.cortes;

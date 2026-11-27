@@ -239,6 +239,7 @@ const schema = defineSchema({
   configuracoesHospital: defineTable({
     organizationId: v.string(),
     explicacaoListaProblemas: v.optional(v.string()),
+    mensagemLivre: v.optional(v.string()),
     cortes: v.optional(cortesValidator),
     regra: v.optional(regraValidator),
     gadPhqSomenteAcimaDoCorteDT: v.optional(v.boolean()),

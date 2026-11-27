@@ -376,10 +376,22 @@ function Configuracoes({ hospital }: { hospital: Hospital }) {
             'Nenhum protocolo publicado: a primeira triagem vai usar o rascunho, com os textos oficiais pendentes.'
           )}
         </Bloco>
-        <ExplicacaoListaProblemas
-          key={dados?.configuracao.explicacaoListaProblemas ?? ''}
+        <TextoConfiguravel
+          key={`explicacao-${dados?.configuracao.explicacaoListaProblemas ?? ''}`}
           hospital={hospital}
+          campo="explicacaoListaProblemas"
+          titulo="Explicação da lista de problemas (DT)"
+          descricao="O robô manda este texto antes do primeiro grupo de problemas. Proposta inicial, para as psicólogas revisarem."
           texto={dados?.configuracao.explicacaoListaProblemas ?? ''}
+          podeEditar={dados?.podeEditar ?? false}
+        />
+        <TextoConfiguravel
+          key={`livre-${dados?.configuracao.mensagemLivre ?? ''}`}
+          hospital={hospital}
+          campo="mensagemLivre"
+          titulo="Mensagem para quando ela escreve algo que não é resposta"
+          descricao="Este número não é um canal para pedir atendimento. Troque [canal de atendimento do hospital] pelo canal certo quando ele for definido."
+          texto={dados?.configuracao.mensagemLivre ?? ''}
           podeEditar={dados?.podeEditar ?? false}
         />
         {dados ? (
@@ -485,13 +497,19 @@ function Linha({ nome, children }: { nome: string; children: ReactNode }) {
   );
 }
 
-/** Text the bot sends before the first DT problem category (editable by the team manager). */
-function ExplicacaoListaProblemas({
+/** A text the bot sends, editable by the team manager (read-only for the others). */
+function TextoConfiguravel({
   hospital,
+  campo,
+  titulo,
+  descricao,
   texto,
   podeEditar,
 }: {
   hospital: Hospital;
+  campo: 'explicacaoListaProblemas' | 'mensagemLivre';
+  titulo: string;
+  descricao: string;
   texto: string;
   podeEditar: boolean;
 }) {
@@ -499,11 +517,8 @@ function ExplicacaoListaProblemas({
   const [valor, setValor] = useState(texto);
   const [salvando, setSalvando] = useState(false);
   return (
-    <Bloco titulo="Explicação da lista de problemas (DT)">
-      <p className="text-muted-foreground">
-        O robô manda este texto antes do primeiro grupo de problemas. Proposta inicial, para as
-        psicólogas revisarem.
-      </p>
+    <Bloco titulo={titulo}>
+      <p className="text-muted-foreground">{descricao}</p>
       {podeEditar ? (
         <form
           className="space-y-3"
@@ -514,14 +529,14 @@ function ExplicacaoListaProblemas({
               () =>
                 salvar({
                   organizationId: hospital.organizationId,
-                  explicacaoListaProblemas: valor,
+                  [campo]: valor,
                 }),
               'Texto salvo.'
             ).finally(() => setSalvando(false));
           }}
         >
           <Textarea
-            aria-label="Explicação da lista de problemas"
+            aria-label={titulo}
             rows={9}
             value={valor}
             onChange={(evento) => setValor(evento.target.value)}
