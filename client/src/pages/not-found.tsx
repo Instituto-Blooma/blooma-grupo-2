@@ -1,23 +1,25 @@
+import { Link } from '@tanstack/react-router';
+import { Creditos, FundoDodecagonos, OlharHumanoLogo } from '@/components/olhar-humano-marca';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { BloomaWordmark } from '@/components/blooma-brand';
-import { AlertCircle } from 'lucide-react';
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md mx-4">
-        <CardContent className="pt-6">
-          <BloomaWordmark compact className="mb-6" />
-          <div className="flex mb-4 gap-2">
-            <AlertCircle className="h-8 w-8 text-destructive" />
-            <h1 className="font-serif text-2xl font-semibold">404 Page Not Found</h1>
-          </div>
-
-          <p className="mt-4 text-sm text-muted-foreground">
-            Did you forget to add the page to the router?
-          </p>
-        </CardContent>
-      </Card>
+    <div className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-background p-4">
+      <FundoDodecagonos />
+      <div className="relative z-10 w-full max-w-md space-y-6">
+        <Card>
+          <CardContent className="space-y-4 pt-6 text-center">
+            <OlharHumanoLogo className="justify-center" />
+            <h1 className="font-serif text-3xl">Página não encontrada</h1>
+            <p className="text-muted-foreground">Este endereço não existe ou foi mudado.</p>
+            <Link to="/">
+              <Button variant="principal">Ir para a fila</Button>
+            </Link>
+          </CardContent>
+        </Card>
+        <Creditos />
+      </div>
     </div>
   );
 }

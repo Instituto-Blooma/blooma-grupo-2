@@ -4,48 +4,72 @@
 
 /* LIGHT MODE */
 :root {
+  /*
+   * Olhar Humano palette (60-30-10). Only these colors are used on the site; every other
+   * variable below points at one of them.
+   *   60% azul-marinho: titles, main text, site base.
+   *   30% lavanda: highlights and details, icons on blue.
+   *   10% laranja: only the essential (main button, urgent).
+   * Blocks, alerts and tags: light shade as background + dark shade of the SAME color as text.
+   */
+  --azul: 204.3 57.8% 25.1%; /* #1B4765 */
+  --azul-clarinho: 204.7 39.5% 91.6%; /* #E1EBF2 block background */
+  --azul-medio: 205.3 30.2% 41.6%; /* #4A6F8A secondary text */
+  --azul-profundo: 204.3 61% 15.1%; /* #0F2B3E side panel */
+  --lavanda: 240 69.7% 87.1%; /* #C7C7F5 */
+  --lavanda-clara: 240 100% 94.9%; /* #E5E5FF block background */
+  --roxo: 240 45% 44.9%; /* #3F3FA6 subtitles and links */
+  --roxo-escuro: 240 48% 33.9%; /* #2D2D80 text on lavanda-clara */
+  --laranja: 22 69.6% 40%; /* #AD531F main button, urgent */
+  --pessego: 24 83.3% 90.6%; /* #FBE3D3 alert background */
+  --laranja-claro: 22.2 100% 69.2%; /* #FF9C62 orange on blue */
+  --laranja-escuro: 22 70.6% 28%; /* #7A3A15 text on pessego, main button hover */
+  --branco: 0 0% 100%; /* #FFFFFF site background */
   --button-outline: rgba(0, 0, 0, 0.1);
   --badge-outline: rgba(0, 0, 0, 0.05);
   --opaque-button-border-intensity: -8;
   --elevate-1: rgba(0, 0, 0, 0.03);
   --elevate-2: rgba(0, 0, 0, 0.08);
-  /* Instituto Blooma — from institutoblooma.org.br */
-  --background: 35 100% 98%;
-  --foreground: 226 77% 16%;
-  --border: 35 22% 88%;
-  --card: 0 0% 100%;
-  --card-foreground: 226 77% 16%;
-  --card-border: 35 20% 90%;
-  --sidebar: 35 45% 96%;
-  --sidebar-foreground: 226 77% 16%;
-  --sidebar-border: 35 22% 88%;
-  --sidebar-primary: 239 98% 42%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 50 100% 90%;
-  --sidebar-accent-foreground: 226 77% 16%;
-  --sidebar-ring: 239 98% 42%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 226 77% 16%;
-  --popover-border: 35 20% 90%;
-  --primary: 239 98% 42%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 269 61% 92%;
-  --secondary-foreground: 226 77% 16%;
-  --muted: 35 28% 93%;
-  --muted-foreground: 226 22% 40%;
-  --accent: 50 100% 88%;
-  --accent-foreground: 226 77% 16%;
-  --destructive: 343 48% 40%;
-  --destructive-foreground: 0 0% 100%;
-  --input: 226 16% 68%;
-  --ring: 239 98% 42%;
-  --chart-1: 239 98% 42%;
-  --chart-2: 50 100% 52%;
-  --chart-3: 130 40% 42%;
-  --chart-4: 262 25% 44%;
-  --chart-5: 191 50% 42%;
-  --font-sans: 'Open Sans', sans-serif;
-  --font-serif: 'Source Serif 4', Georgia, serif;
+  --titulo: var(--azul);
+  --font-subtitulo: 'Lora', Georgia, serif;
+  --subtitulo: var(--roxo);
+  --link: var(--roxo);
+  --background: var(--branco);
+  --foreground: var(--azul);
+  --border: var(--azul-clarinho);
+  --card: var(--branco);
+  --card-foreground: var(--azul);
+  --card-border: var(--azul-clarinho);
+  --sidebar: var(--azul-profundo);
+  --sidebar-foreground: var(--azul-clarinho);
+  --sidebar-border: var(--azul);
+  --sidebar-primary: var(--lavanda);
+  --sidebar-primary-foreground: var(--azul-profundo);
+  --sidebar-accent: var(--azul);
+  --sidebar-accent-foreground: var(--branco);
+  --sidebar-ring: var(--lavanda);
+  --popover: var(--branco);
+  --popover-foreground: var(--azul);
+  --popover-border: var(--azul-clarinho);
+  --primary: var(--azul);
+  --primary-foreground: var(--branco);
+  --secondary: var(--lavanda-clara);
+  --secondary-foreground: var(--roxo-escuro);
+  --muted: var(--azul-clarinho);
+  --muted-foreground: var(--azul-medio);
+  --accent: var(--azul-clarinho);
+  --accent-foreground: var(--azul-profundo);
+  --destructive: var(--laranja-escuro);
+  --destructive-foreground: var(--branco);
+  --input: var(--azul-medio);
+  --ring: var(--roxo);
+  --chart-1: var(--azul);
+  --chart-2: var(--lavanda);
+  --chart-3: var(--laranja);
+  --chart-4: var(--azul-medio);
+  --chart-5: var(--roxo);
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --font-serif: 'Gloock', Georgia, serif;
   --font-mono: 'IBM Plex Mono', Menlo, monospace;
   --radius: 0.875rem;
   --shadow-2xs: 0px 2px 0px 0px hsl(0 0% 0% / 0);
@@ -108,40 +132,43 @@
   --opaque-button-border-intensity: 9;
   --elevate-1: rgba(255, 255, 255, 0.04);
   --elevate-2: rgba(255, 255, 255, 0.09);
-  --background: 226 45% 8%;
-  --foreground: 35 40% 96%;
-  --border: 226 20% 18%;
-  --card: 226 38% 11%;
-  --card-foreground: 35 40% 96%;
-  --card-border: 226 20% 16%;
-  --sidebar: 226 40% 10%;
-  --sidebar-foreground: 35 40% 96%;
-  --sidebar-border: 226 20% 16%;
-  --sidebar-primary: 50 100% 70%;
-  --sidebar-primary-foreground: 226 77% 12%;
-  --sidebar-accent: 226 25% 16%;
-  --sidebar-accent-foreground: 35 40% 96%;
-  --sidebar-ring: 50 100% 70%;
-  --popover: 226 32% 13%;
-  --popover-foreground: 35 40% 96%;
-  --popover-border: 226 20% 18%;
-  --primary: 239 86% 68%;
-  --primary-foreground: 226 60% 10%;
-  --secondary: 262 20% 22%;
-  --secondary-foreground: 35 40% 96%;
-  --muted: 226 20% 16%;
-  --muted-foreground: 35 16% 72%;
-  --accent: 50 40% 18%;
-  --accent-foreground: 50 100% 78%;
-  --destructive: 343 55% 55%;
-  --destructive-foreground: 0 0% 100%;
-  --input: 226 15% 32%;
-  --ring: 239 86% 68%;
-  --chart-1: 239 86% 70%;
-  --chart-2: 50 100% 70%;
-  --chart-3: 130 45% 58%;
-  --chart-4: 262 30% 64%;
-  --chart-5: 191 50% 64%;
+  --titulo: var(--branco);
+  --subtitulo: var(--lavanda);
+  --link: var(--lavanda);
+  --background: var(--azul-profundo);
+  --foreground: var(--azul-clarinho);
+  --border: var(--azul);
+  --card: var(--azul-profundo);
+  --card-foreground: var(--azul-clarinho);
+  --card-border: var(--azul);
+  --sidebar: var(--azul-profundo);
+  --sidebar-foreground: var(--azul-clarinho);
+  --sidebar-border: var(--azul);
+  --sidebar-primary: var(--lavanda);
+  --sidebar-primary-foreground: var(--azul-profundo);
+  --sidebar-accent: var(--azul);
+  --sidebar-accent-foreground: var(--branco);
+  --sidebar-ring: var(--lavanda);
+  --popover: var(--azul-profundo);
+  --popover-foreground: var(--azul-clarinho);
+  --popover-border: var(--azul);
+  --primary: var(--lavanda);
+  --primary-foreground: var(--azul-profundo);
+  --secondary: var(--roxo-escuro);
+  --secondary-foreground: var(--lavanda-clara);
+  --muted: var(--azul);
+  --muted-foreground: var(--lavanda);
+  --accent: var(--azul);
+  --accent-foreground: var(--branco);
+  --destructive: var(--laranja-claro);
+  --destructive-foreground: var(--azul-profundo);
+  --input: var(--azul-medio);
+  --ring: var(--lavanda);
+  --chart-1: var(--lavanda);
+  --chart-2: var(--azul-clarinho);
+  --chart-3: var(--laranja-claro);
+  --chart-4: var(--azul-medio);
+  --chart-5: var(--lavanda-clara);
   --shadow-2xs: 0px 2px 0px 0px hsl(0 0% 0% / 0);
   --shadow-xs: 0px 2px 0px 0px hsl(0 0% 0% / 0);
   --shadow-sm: 0px 2px 0px 0px hsl(0 0% 0% / 0), 0px 1px 2px -1px hsl(0 0% 0% / 0);
@@ -203,11 +230,25 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 
-  h1,
+  /* Grupo 2: Gloock for page titles, Lora for subtitles, DM Sans for text. */
+  h1 {
+    font-family: var(--font-serif);
+    color: hsl(var(--titulo));
+    letter-spacing: -0.01em;
+  }
+
+  /* Subtitles in roxo (lavanda in the dark theme). */
   h2,
   h3 {
-    font-family: var(--font-serif);
-    letter-spacing: -0.025em;
+    font-family: var(--font-subtitulo);
+    color: hsl(var(--subtitulo));
+    letter-spacing: -0.01em;
+  }
+
+  /* Gloock has a single weight: never draw a fake bold. */
+  .font-serif {
+    font-weight: 400;
+    font-synthesis: none;
   }
 }
 

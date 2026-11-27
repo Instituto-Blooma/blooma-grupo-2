@@ -28,14 +28,25 @@ import type { MensagemRecebida, ResultadoRecebimento } from './canal';
 import { requireUserId } from './lib/auth';
 import { tenantsClient } from './lib/tenantsClient';
 import { normalizarTexto } from './lib/texto';
+import { depoisDoAceite, registrarPalavraDeRisco, tratarMensagemDepoisDoAceite } from './triagem';
 
 export const OPCAO_TERMO_ACEITO = 'termo_aceito';
 export const OPCAO_TERMO_RECUSADO = 'termo_recusado';
 const PREFIXO_OPCAO_HOSPITAL = 'hospital:';
 
-const MENSAGEM_CRISE =
+/**
+ * Ready-made message of the hospital's wa.me link / QR code. The code must stay a separate word:
+ * that is how the first message links the patient to the hospital (identificarHospital).
+ */
+export function mensagemDoLink(codigo: string) {
+  return `Oi, sou uma paciente do ${codigo}`;
+}
+
+/** Words of the link message itself can never be a hospital code (they are in every message). */
+const PALAVRAS_DA_MENSAGEM_DO_LINK = new Set(normalizarTexto(mensagemDoLink('')).split(' '));
+
+export const MENSAGEM_CRISE =
   'Se você está em perigo ou pensando em tirar a própria vida, procure ajuda agora: ligue 188 (CVV, gratuito, 24 horas) ou 192 (SAMU). Você não precisa passar por isso sem ajuda.';
-const MENSAGEM_ACEITE = 'Obrigado pelo aceite! Vamos continuar.';
 const MENSAGEM_RECUSA =
   'Tudo bem. Sem o seu aceite não conseguimos continuar o atendimento por aqui. Se mudar de ideia, é só mandar uma mensagem.';
 const MENSAGEM_EXCLUSAO_PEDIDA =
@@ -84,6 +95,8 @@ export async function receberMensagemDaPaciente(
       await guardarMensagemDaPaciente(ctx, paciente, mensagem.texto);
     }
     await enviarTextoDoRobo(ctx, paciente.telefone, MENSAGEM_CRISE);
+    // The case becomes urgent in the team queue (and an open check-in stops here).
+    await registrarPalavraDeRisco(ctx, paciente);
     return CANCELAR;
   }
 
@@ -116,8 +129,9 @@ export async function receberMensagemDaPaciente(
     return SEM_CANCELAR;
   }
 
-  // 5. Consented: keep the text for the hospital team. The triage flow continues from here.
+  // 5. Consented: keep the text for the hospital team, then the triage flow (convex/triagem.ts).
   await guardarMensagemDaPaciente(ctx, paciente, mensagem.texto);
+  await tratarMensagemDepoisDoAceite(ctx, paciente, mensagem);
   return SEM_CANCELAR;
 }
 
@@ -177,7 +191,7 @@ async function identificarHospital(
     return null;
   }
 
-  // A known code anywhere in the message ("Oi ACC").
+  // A known code anywhere in the message, as a whole word ("Oi, sou uma paciente do ACC").
   const palavras = new Set(textoNormalizado.split(' '));
   const porCodigo = hospitais.find((hospital) => palavras.has(normalizarTexto(hospital.codigo)));
   if (porCodigo) return porCodigo.organizationId;
@@ -268,10 +282,10 @@ async function tratarConsentimento(
   mensagem: MensagemRecebida
 ) {
   if (mensagem.opcaoEscolhida === OPCAO_TERMO_ACEITO) {
-    await ctx.db.patch('pacientes', paciente._id, {
-      consentimento: { versaoTermo: termo.versao, aceitoEm: Date.now() },
-    });
-    await enviarTextoDoRobo(ctx, paciente.telefone, MENSAGEM_ACEITE);
+    const consentimento = { versaoTermo: termo.versao, aceitoEm: Date.now() };
+    await ctx.db.patch('pacientes', paciente._id, { consentimento });
+    // Thanks her and starts the sign-up (or just continues if she was already signed up).
+    await depoisDoAceite(ctx, { ...paciente, consentimento });
     return;
   }
   if (mensagem.opcaoEscolhida === OPCAO_TERMO_RECUSADO) {
@@ -302,7 +316,10 @@ async function termoAtual(ctx: QueryCtx | MutationCtx) {
     .first();
 }
 
-async function temConsentimentoAtual(ctx: QueryCtx | MutationCtx, paciente: Doc<'pacientes'>) {
+export async function temConsentimentoAtual(
+  ctx: QueryCtx | MutationCtx,
+  paciente: Doc<'pacientes'>
+) {
   const termo = await termoAtual(ctx);
   return termo !== null && paciente.consentimento?.versaoTermo === termo.versao;
 }
@@ -437,6 +454,22 @@ export const apagarRestoDosDados = internalMutation({
         .query('canalConversas')
         .withIndex('by_telefone', (q) => q.eq('telefone', telefone))
         .take(LOTE_EXCLUSAO),
+      ctx.db
+        .query('checkins')
+        .withIndex('by_pacienteId_and_iniciadoEm', (q) => q.eq('pacienteId', args.pacienteId))
+        .take(LOTE_EXCLUSAO),
+      ctx.db
+        .query('alertasPaciente')
+        .withIndex('by_pacienteId_and_criadoEm', (q) => q.eq('pacienteId', args.pacienteId))
+        .take(LOTE_EXCLUSAO),
+      ctx.db
+        .query('eventosCaso')
+        .withIndex('by_pacienteId_and_em', (q) => q.eq('pacienteId', args.pacienteId))
+        .take(LOTE_EXCLUSAO),
+      ctx.db
+        .query('avisosEquipe')
+        .withIndex('by_pacienteId', (q) => q.eq('pacienteId', args.pacienteId))
+        .take(LOTE_EXCLUSAO),
     ]);
     for (const documento of lotes.flat()) {
       await ctx.db.delete(documento._id);
@@ -458,7 +491,7 @@ function resumoDaPaciente(paciente: Doc<'pacientes'>) {
   };
 }
 
-async function requireMembroDoHospital(ctx: QueryCtx | MutationCtx, organizationId: string) {
+export async function requireMembroDoHospital(ctx: QueryCtx | MutationCtx, organizationId: string) {
   const userId = await requireUserId(ctx);
   const membro = await tenantsClient.getMember(ctx, organizationId, userId);
   if (!membro) {
@@ -468,7 +501,10 @@ async function requireMembroDoHospital(ctx: QueryCtx | MutationCtx, organization
 }
 
 /** Only members of the patient's hospital; a patient with no hospital yet is seen by no one. */
-async function requireAcessoAPaciente(ctx: QueryCtx | MutationCtx, pacienteId: Id<'pacientes'>) {
+export async function requireAcessoAPaciente(
+  ctx: QueryCtx | MutationCtx,
+  pacienteId: Id<'pacientes'>
+) {
   const paciente = await ctx.db.get('pacientes', pacienteId);
   if (!paciente?.organizationId) {
     throw new ConvexError('Paciente não encontrada.');
@@ -492,6 +528,11 @@ export const definirCodigoDoHospital = internalMutation({
     const codigo = args.codigo.trim().toUpperCase();
     if (!/^[A-Z0-9]{2,10}$/.test(codigo)) {
       throw new ConvexError('O código deve ter de 2 a 10 letras ou números, sem espaços.');
+    }
+    if (PALAVRAS_DA_MENSAGEM_DO_LINK.has(normalizarTexto(codigo))) {
+      throw new ConvexError(
+        `O código ${codigo} é uma palavra da mensagem do link ("${mensagemDoLink('ACC')}"). Escolha outro.`
+      );
     }
     if (!(await tenantsClient.getOrganization(ctx, args.organizationId))) {
       throw new ConvexError('Hospital (organização) não encontrado.');
@@ -534,7 +575,7 @@ export const listarHospitais = internalQuery({
         organizationId: hospital.organizationId,
         nome: await nomeDoHospital(ctx, hospital),
         codigo: hospital.codigo,
-        mensagemDoLink: `Oi ${hospital.codigo}`,
+        mensagemDoLink: mensagemDoLink(hospital.codigo),
       }))
     );
   },
@@ -621,8 +662,19 @@ const TABELAS_DE_CONVERSA = [
   'canalMensagensRecebidas',
   'canalConversas',
   'canalMensagensPendentes',
+  'checkins',
+  'alertasPaciente',
+  'eventosCaso',
+  'avisosEquipe',
 ] as const;
-const TABELAS_DE_CONFIGURACAO = ['hospitais', 'palavrasDeRisco', 'termosConsentimento'] as const;
+const TABELAS_DE_CONFIGURACAO = [
+  'hospitais',
+  'palavrasDeRisco',
+  'termosConsentimento',
+  'escalasTriagem',
+  'protocolosTriagem',
+  'configuracoesHospital',
+] as const;
 
 /**
  * Deletes every patient, message, alert and channel record (and, with `incluirConfiguracao`,

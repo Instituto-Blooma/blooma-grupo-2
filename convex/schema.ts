@@ -1,6 +1,9 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { authTables } from '@convex-dev/auth/server';
 import { v } from 'convex/values';
+import { conteudoEscalaValidator, faixasValidator, prioridadeValidator } from './lib/escala';
+import { conteudoProtocoloValidator, respostaValidator } from './lib/protocolo';
+import { cortesValidator, regraValidator } from './lib/configuracaoTriagem';
 
 /** One option of a menu sent to a patient (button or list row). Used by `convex/canal.ts`. */
 export const opcaoMenuValidator = v.object({
@@ -122,10 +125,198 @@ const schema = defineSchema({
     consentimento: v.optional(v.object({ versaoTermo: v.string(), aceitoEm: v.number() })),
     exclusaoPedidaEm: v.optional(v.number()),
     criadaEm: v.number(),
+
+    // Sign-up after consent, asked by the bot (owned by convex/triagem.ts). The team can fix it.
+    nomeCompleto: v.optional(v.string()),
+    apelido: v.optional(v.string()),
+    /** Hospital record number, for a future link to the patient's medical record. */
+    prontuario: v.optional(v.string()),
+    /** Which sign-up answer the bot is waiting for; empty when not in sign-up. */
+    etapaCadastro: v.optional(
+      v.union(v.literal('nome'), v.literal('apelido'), v.literal('prontuario'))
+    ),
+    cadastroConcluidoEm: v.optional(v.number()),
+
+    // Check-in and team queue (owned by convex/triagem.ts and convex/equipe.ts).
+    checkinAtualId: v.optional(v.id('checkins')),
+    ultimoCheckinEm: v.optional(v.number()),
+    ultimaPontuacao: v.optional(v.number()),
+    prioridade: v.optional(prioridadeValidator),
+    /** True while the case waits for the team or is being handled (open case). */
+    naFila: v.optional(v.boolean()),
+    /** Queue order: 0 urgent … 3 low, 9 no priority yet. See ORDEM_PRIORIDADE. */
+    ordemFila: v.optional(v.number()),
+    naFilaDesde: v.optional(v.number()),
+    situacaoCaso: v.optional(
+      v.union(v.literal('aguardando'), v.literal('em_atendimento'), v.literal('concluido'))
+    ),
+    responsavelId: v.optional(v.id('users')),
+    /** Priority of the last finished check-in (also when it opened no case). */
+    ultimaPrioridade: v.optional(prioridadeValidator),
+    /** Scores of the last finished entry triage (GAD-7/PHQ-9 missing when not applied). */
+    ultimasNotas: v.optional(
+      v.object({
+        dt: v.optional(v.number()),
+        gad7: v.optional(v.number()),
+        phq9: v.optional(v.number()),
+      })
+    ),
+    // The two alert flags are true only while the case is open (closing the case clears them),
+    // so their indexes do not need `naFila`. Index names must be 64 characters or less.
+    /** Open case has a real-risk alert (risk answer or risk word): queue filter "Risco". */
+    alertaRisco: v.optional(v.boolean()),
+    /** Open case has the "bot did not understand her" alert: queue filter. */
+    alertaRobo: v.optional(v.boolean()),
   })
     .index('by_telefone', ['telefone'])
     .index('by_organizationId', ['organizationId'])
-    .index('by_organizationId_and_exclusaoPedidaEm', ['organizationId', 'exclusaoPedidaEm']),
+    .index('by_organizationId_and_exclusaoPedidaEm', ['organizationId', 'exclusaoPedidaEm'])
+    .index('by_organizationId_and_naFila_and_ordemFila_and_naFilaDesde', [
+      'organizationId',
+      'naFila',
+      'ordemFila',
+      'naFilaDesde',
+    ])
+    .index('by_organizationId_and_alertaRisco_and_ordemFila_and_naFilaDesde', [
+      'organizationId',
+      'alertaRisco',
+      'ordemFila',
+      'naFilaDesde',
+    ])
+    .index('by_organizationId_and_alertaRobo_and_ordemFila_and_naFilaDesde', [
+      'organizationId',
+      'alertaRobo',
+      'ordemFila',
+      'naFilaDesde',
+    ])
+    .searchIndex('search_nomeCompleto', {
+      searchField: 'nomeCompleto',
+      filterFields: ['organizationId'],
+    }),
+
+  // How each team member appears to patients: "*Ana (psicóloga):*". Filled on first access.
+  perfisEquipe: defineTable({
+    userId: v.id('users'),
+    nome: v.string(),
+    funcao: v.string(),
+    atualizadoEm: v.number(),
+  }).index('by_userId', ['userId']),
+
+  // Notices for the team that need no case, e.g. "Fulana finished the check-in: low priority".
+  avisosEquipe: defineTable({
+    organizationId: v.string(),
+    pacienteId: v.id('pacientes'),
+    checkinId: v.id('checkins'),
+    tipo: v.literal('checkin_prioridade_baixa'),
+    visto: v.boolean(),
+    vistoPor: v.optional(v.id('users')),
+    vistoEm: v.optional(v.number()),
+    criadoEm: v.number(),
+  })
+    .index('by_organizationId_and_visto_and_criadoEm', ['organizationId', 'visto', 'criadoEm'])
+    .index('by_pacienteId', ['pacienteId']),
+
+  // Case history: who took over and who closed it, and when.
+  eventosCaso: defineTable({
+    pacienteId: v.id('pacientes'),
+    organizationId: v.string(),
+    usuarioId: v.id('users'),
+    tipo: v.union(v.literal('assumiu'), v.literal('concluiu')),
+    em: v.number(),
+  }).index('by_pacienteId_and_em', ['pacienteId', 'em']),
+
+  // Entry triage protocol versions: DT, GAD-7 and PHQ-9 as data (convex/lib/protocolo.ts).
+  // The most recent one is used for new triages.
+  protocolosTriagem: defineTable({
+    ...conteudoProtocoloValidator.fields,
+    publicadoEm: v.number(),
+  })
+    .index('by_versao', ['versao'])
+    .index('by_publicadoEm', ['publicadoEm']),
+
+  // Per-hospital triage settings edited on the Configurações page. Missing fields use the
+  // defaults of convex/lib/configuracaoTriagem.ts.
+  configuracoesHospital: defineTable({
+    organizationId: v.string(),
+    explicacaoListaProblemas: v.optional(v.string()),
+    mensagemLivre: v.optional(v.string()),
+    cortes: v.optional(cortesValidator),
+    regra: v.optional(regraValidator),
+    gadPhqSomenteAcimaDoCorteDT: v.optional(v.boolean()),
+    checkinSemanalAtivo: v.optional(v.boolean()),
+    atualizadoEm: v.number(),
+    atualizadoPor: v.optional(v.id('users')),
+  }).index('by_organizationId', ['organizationId']),
+
+  // OLD example scale (replaced by protocolosTriagem). Kept so earlier test data still reads.
+  escalasTriagem: defineTable({
+    ...conteudoEscalaValidator.fields,
+    publicadaEm: v.number(),
+  })
+    .index('by_versao', ['versao'])
+    .index('by_publicadaEm', ['publicadaEm']),
+
+  // One check-in = one pass through the scale. Answers keep the question and option text as
+  // they were shown, so old check-ins still read correctly after the scale changes.
+  checkins: defineTable({
+    pacienteId: v.id('pacientes'),
+    organizationId: v.string(),
+    // Entry triage (current): protocol used and its results.
+    protocoloId: v.optional(v.id('protocolosTriagem')),
+    protocoloVersao: v.optional(v.string()),
+    protocoloNome: v.optional(v.string()),
+    textoOficialPendente: v.optional(v.boolean()),
+    resultados: v.optional(
+      v.object({
+        dt: v.optional(v.number()),
+        gad7: v.optional(v.number()),
+        phq9: v.optional(v.number()),
+        riscoPhq9: v.boolean(),
+        gadPhqNaoAplicados: v.boolean(),
+      })
+    ),
+    /** Problem list: numbers she typed, waiting for "Certo" / "Corrigir". */
+    selecaoPendente: v.optional(v.array(v.number())),
+    /** Typed answers in a row that could not be read (3 → the team takes over). */
+    tentativasInvalidas: v.optional(v.number()),
+    // OLD example-scale check-ins.
+    escalaId: v.optional(v.id('escalasTriagem')),
+    escalaVersao: v.optional(v.string()),
+    escalaNome: v.optional(v.string()),
+    escalaExemplo: v.optional(v.boolean()),
+    faixas: v.optional(faixasValidator),
+    pontuacaoMaxima: v.optional(v.number()),
+    motivo: v.union(v.literal('cadastro'), v.literal('semanal')),
+    situacao: v.union(v.literal('em_andamento'), v.literal('concluido'), v.literal('interrompido')),
+    motivoInterrupcao: v.optional(
+      v.union(
+        v.literal('sem_resposta'),
+        v.literal('palavra_de_risco'),
+        v.literal('robo_nao_entendeu')
+      )
+    ),
+    /** Index of the next question (protocol step) to ask. */
+    proximaPergunta: v.number(),
+    respostas: v.array(respostaValidator),
+    pontuacao: v.number(),
+    teveRisco: v.boolean(),
+    prioridade: v.optional(prioridadeValidator),
+    iniciadoEm: v.number(),
+    concluidoEm: v.optional(v.number()),
+  }).index('by_pacienteId_and_iniciadoEm', ['pacienteId', 'iniciadoEm']),
+
+  // Alerts shown on the patient's record (the hospital-wide `alertasCrise` stays as it is).
+  alertasPaciente: defineTable({
+    pacienteId: v.id('pacientes'),
+    organizationId: v.string(),
+    tipo: v.union(
+      v.literal('resposta_de_risco'),
+      v.literal('palavra_de_risco'),
+      v.literal('robo_nao_entendeu')
+    ),
+    checkinId: v.optional(v.id('checkins')),
+    criadoEm: v.number(),
+  }).index('by_pacienteId_and_criadoEm', ['pacienteId', 'criadoEm']),
 
   // Hospitals the bot serves: one organization each, with a short code ("ACC") that links a
   // patient whose first message contains it (e.g. from a wa.me link or QR code).

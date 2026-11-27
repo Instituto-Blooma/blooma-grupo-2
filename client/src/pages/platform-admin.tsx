@@ -4,7 +4,7 @@ import { useMutation, useQuery } from 'convex/react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BloomaWordmark } from '@/components/blooma-brand';
+import { OlharHumanoLogo } from '@/components/olhar-humano-marca';
 import { OrganizationContextControl } from '@/components/organization-context-control';
 import { ImpersonationBanner } from '@/components/impersonation-banner';
 import { applyServerErrors, getSubmitErrorMessage, useAppForm } from '@/components/form';
@@ -34,11 +34,11 @@ function CreateOrganizationForm() {
           name: value.name,
           slug: value.slug || slugifyOrganizationName(value.name),
         });
-        toast.success('Organization created');
+        toast.success('Hospital criado');
         form.reset();
       } catch (error) {
         if (!applyServerErrors(form, error)) {
-          toast.error(getSubmitErrorMessage(error, 'Failed to create organization'));
+          toast.error(getSubmitErrorMessage(error, 'Não foi possível criar o hospital'));
         }
       }
     },
@@ -50,17 +50,17 @@ function CreateOrganizationForm() {
     <form.FormShell className="gap-3">
       <fields.Text
         name="name"
-        placeholder="Organization name"
+        placeholder="Nome do hospital"
         validation={createOrganizationSchema.shape.name}
         data-testid="input-org-name"
       />
       <fields.Text
         name="slug"
-        placeholder="slug"
+        placeholder="endereço-curto (ex.: ac-camargo)"
         validation={createOrganizationSchema.shape.slug}
         data-testid="input-org-slug"
       />
-      <form.SubmitButton data-testid="button-create-org">Create organization</form.SubmitButton>
+      <form.SubmitButton data-testid="button-create-org">Criar hospital</form.SubmitButton>
     </form.FormShell>
   );
 }
@@ -83,11 +83,11 @@ function ProvisionUserForm({ organizations, defaultOrganizationId }: ProvisionUs
     onSubmit: async ({ value }) => {
       try {
         await provisionUser(value);
-        toast.success('User provisioned');
+        toast.success('Pessoa cadastrada');
         form.setFieldValue('email', '');
       } catch (error) {
         if (!applyServerErrors(form, error)) {
-          toast.error(getSubmitErrorMessage(error, 'Failed to provision user'));
+          toast.error(getSubmitErrorMessage(error, 'Não foi possível cadastrar a pessoa'));
         }
       }
     },
@@ -112,7 +112,7 @@ function ProvisionUserForm({ organizations, defaultOrganizationId }: ProvisionUs
       />
       <fields.Text
         name="email"
-        placeholder="user@example.com"
+        placeholder="pessoa@hospital.org.br"
         type="email"
         validation={provisionUserSchema.shape.email}
         data-testid="input-provision-email"
@@ -121,18 +121,18 @@ function ProvisionUserForm({ organizations, defaultOrganizationId }: ProvisionUs
         name="role"
         validation={provisionUserSchema.shape.role}
         options={[
-          { value: 'admin', label: 'Admin' },
-          { value: 'member', label: 'Member' },
+          { value: 'admin', label: 'Responsável pela equipe' },
+          { value: 'member', label: 'Equipe' },
         ]}
         data-testid="select-provision-role"
       />
       <fields.Checkbox
         name="sendInvite"
-        label="Send invite immediately"
+        label="Mandar o convite agora"
         validation={provisionUserSchema.shape.sendInvite}
         data-testid="checkbox-send-invite"
       />
-      <form.SubmitButton data-testid="button-provision-user">Provision user</form.SubmitButton>
+      <form.SubmitButton data-testid="button-provision-user">Cadastrar pessoa</form.SubmitButton>
     </form.FormShell>
   );
 }
@@ -149,10 +149,10 @@ function ImpersonationForm() {
         await startImpersonation({
           targetUserId: value.targetUserId as Id<'users'>,
         });
-        toast.success('Impersonation started');
+        toast.success('Agora você está vendo o site como esta pessoa');
       } catch (error) {
         if (!applyServerErrors(form, error)) {
-          toast.error(getSubmitErrorMessage(error, 'Failed to start impersonation'));
+          toast.error(getSubmitErrorMessage(error, 'Não foi possível entrar como esta pessoa'));
         }
       }
     },
@@ -164,13 +164,13 @@ function ImpersonationForm() {
     <form.FormShell className="flex-row items-center gap-2">
       <fields.Text
         name="targetUserId"
-        placeholder="Target user ID"
+        placeholder="ID da pessoa"
         className="flex-1"
         validation={impersonationSchema.shape.targetUserId}
         data-testid="input-impersonate-user-id"
       />
       <form.SubmitButton data-testid="button-start-impersonation">
-        Start impersonating
+        Ver como esta pessoa
       </form.SubmitButton>
     </form.FormShell>
   );
@@ -188,15 +188,15 @@ export function PlatformAdminPage() {
   const sendInvite = useMutation(api.onboarding.sendInvite);
 
   if (isPlatformAdmin === undefined) {
-    return <div className="container p-8">Loading platform admin panel...</div>;
+    return <div className="container p-8">Carregando a administração...</div>;
   }
 
   if (!isPlatformAdmin) {
     return (
       <div className="container p-8">
-        <p>Platform admin access required.</p>
+        <p>Esta área é só para a administração da plataforma.</p>
         <Link to="/">
-          <Button variant="ghost">Back to dashboard</Button>
+          <Button variant="ghost">Voltar para a fila</Button>
         </Link>
       </div>
     );
@@ -208,9 +208,9 @@ export function PlatformAdminPage() {
       <header className="border-b">
         <div className="container flex items-center justify-between gap-4 px-4 py-4 md:px-6">
           <div className="space-y-2">
-            <BloomaWordmark compact />
+            <OlharHumanoLogo />
             <h1 className="font-serif text-xl font-semibold" data-testid="platform-admin-title">
-              Platform Admin
+              Administração da plataforma
             </h1>
             <p className="text-sm text-muted-foreground">{users?.email}</p>
           </div>
@@ -219,7 +219,7 @@ export function PlatformAdminPage() {
               <OrganizationContextControl isPlatformAdmin />
             </div>
             <Link to="/">
-              <Button variant="outline">Dashboard</Button>
+              <Button variant="outline">Fila</Button>
             </Link>
           </div>
         </div>
@@ -228,7 +228,7 @@ export function PlatformAdminPage() {
       <main className="container grid gap-6 px-4 py-6 md:grid-cols-2 md:px-6">
         <Card>
           <CardHeader>
-            <CardTitle>Create organization</CardTitle>
+            <CardTitle>Criar hospital</CardTitle>
           </CardHeader>
           <CardContent>
             <CreateOrganizationForm />
@@ -237,7 +237,7 @@ export function PlatformAdminPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Provision user</CardTitle>
+            <CardTitle>Cadastrar pessoa</CardTitle>
           </CardHeader>
           <CardContent>
             <ProvisionUserForm
@@ -249,7 +249,7 @@ export function PlatformAdminPage() {
 
         <Card className="md:col-span-2">
           <CardHeader>
-            <CardTitle>Organizations</CardTitle>
+            <CardTitle>Hospitais</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2" data-testid="platform-org-list">
@@ -264,7 +264,7 @@ export function PlatformAdminPage() {
 
         <Card className="md:col-span-2">
           <CardHeader>
-            <CardTitle>Provisioned users {activeOrgId ? `for ${activeOrgId}` : ''}</CardTitle>
+            <CardTitle>Pessoas cadastradas</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {(provisioned ?? []).map((record) => (
@@ -290,7 +290,7 @@ export function PlatformAdminPage() {
                       })
                     }
                   >
-                    Send invite
+                    Mandar convite
                   </Button>
                 ) : null}
               </div>
@@ -300,7 +300,7 @@ export function PlatformAdminPage() {
 
         <Card className="md:col-span-2">
           <CardHeader>
-            <CardTitle>Impersonation</CardTitle>
+            <CardTitle>Ver o site como outra pessoa</CardTitle>
           </CardHeader>
           <CardContent>
             <ImpersonationForm />

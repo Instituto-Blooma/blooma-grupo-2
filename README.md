@@ -4,6 +4,27 @@ Instituto Blooma product on the **convexplate** B2B foundation: **Organizations*
 
 Built on Vite, React, TypeScript, and Convex — with local dev, GitHub CI, and Railway deploy.
 
+## Site da equipe de psicologia (grupo 2)
+
+A equipe do hospital entra pelo convite (organização = hospital) e vê só as pacientes do próprio hospital.
+
+**Entrar:** com e-mail e senha. No primeiro acesso, a pessoa usa o e-mail do convite, cria uma senha e confirma com um código de 6 números enviado por e-mail; "Esqueci minha senha" também usa um código. Só e-mails convidados conseguem criar a senha. Em desenvolvimento e na versão de teste do Railway, os e-mails ficam em `/dev/inbox`. Em produção, é preciso configurar `RESEND_API_KEY` e `RESEND_FROM` (um remetente de um domínio verificado no Resend).
+
+**Cores:** paleta do Olhar Humano (regra 60-30-10), em variáveis do tema em `client/src/index.css` e nomes do Tailwind em `tailwind.config.ts`: `azul` #1B4765 (`azul-clarinho` #E1EBF2, `azul-medio` #4A6F8A, `azul-profundo` #0F2B3E), `lavanda` #C7C7F5 (`lavanda-clara` #E5E5FF, `roxo` #3F3FA6, `roxo-escuro` #2D2D80) e `laranja` #AD531F (`pessego` #FBE3D3, `laranja-claro` #FF9C62, `laranja-escuro` #7A3A15). Fundo branco. Blocos e etiquetas: tonalidade clarinha de fundo e escura da mesma cor no texto. Um botão laranja (`variant="principal"`) por tela, no máximo; laranja nunca sobre azul (use `laranja-claro`). Não use cores soltas no código.
+
+**Logo:** a opção "Abraço" de [design/logo-opcoes.html](./design/logo-opcoes.html). A versão final é um arquivo só, [`client/public/logo.svg`](./client/public/logo.svg), igual em todo lugar (inclusive no tema escuro), com quadrado lavanda #E5E5FF, braços azul-marinho #1B4765 e roxo #3F3FA6 e pupila laranja #AD531F: o site mostra esse arquivo, e os ícones da aba (`favicon.png`, `favicon-staging.png`, `favicon-pr.png`) e a imagem dos e-mails (`logo-email.png`) são gerados a partir dele, em 256×256. Os e-mails mostram a imagem quando `SITE_URL` está configurado no Convex.
+
+O menu fica num painel lateral: Fila, Sinal de risco, Robô não entendeu, Avisos, Pacientes, Equipe, Configurações e Meu perfil.
+
+| Tela               | Endereço          | O que mostra                                                                                                |
+| ------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------- |
+| Fila               | `/`               | Casos abertos: urgente, alta, moderada, baixa; na mesma prioridade, quem espera há mais tempo               |
+| Todas as pacientes | `/pacientes`      | Todas as pacientes do hospital, com busca pelo nome completo                                                |
+| Ficha              | `/pacientes/<id>` | Cadastro, alertas, todos os check-ins com respostas e pontos, conversa no WhatsApp, assumir e concluir caso |
+| Meu perfil         | `/perfil`         | Nome e função que aparecem no começo de cada mensagem para a paciente                                       |
+
+Como a triagem funciona no WhatsApp (cadastro, check-in semanal, escala de EXEMPLO e regra de prioridade): [docs/whatsapp/README.md](./docs/whatsapp/README.md#triagem-cadastro-check-in-e-prioridade). Backend: `convex/triagem.ts` (robô) e `convex/equipe.ts` (site).
+
 ## What You Get
 
 - **Organizations** (multi-company isolation) via `@djpanda/convex-tenants`

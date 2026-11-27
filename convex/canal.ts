@@ -40,6 +40,7 @@ import {
   registrarMensagemEnviada,
   type RemetenteSaida,
 } from './pacientes';
+import { registrarQueRoboNaoEntendeu } from './triagem';
 import { mensagemSaidaValidator, opcaoMenuValidator, perguntaValidator } from './schema';
 
 // ---------------------------------------------------------------------------
@@ -84,6 +85,13 @@ const MENSAGEM_NAO_ENTENDI =
   'Não entendi sua resposta. Responda com o número ou o nome de uma das opções.';
 const MENSAGEM_EQUIPE_VAI_AJUDAR =
   'Não consegui entender suas respostas. Alguém da equipe vai continuar a conversa com você por aqui.';
+/**
+ * Text of the approved notice template (WHATSAPP_TEMPLATE_AVISO), sent when the 24h window is
+ * closed. WhatsApp sends the text registered at Meta, so the template there must have exactly
+ * this text; here it is only written to the conversation history.
+ */
+export const TEXTO_MODELO_AVISO =
+  'Oi, tudo bem? Você tem uma nova mensagem da equipe! Por favor, escreva uma mensagem para te enviarmos a resposta da equipe.';
 
 const LIMITES = {
   texto: 4096,
@@ -366,7 +374,7 @@ async function tratarRespostaErrada(
 /**
  * The bot gives up on a question (3 wrong answers in a row): tells the patient a person will
  * take over and sends the guide on how to use the service again (when CANAL_CARTILHA_URL is set).
- * The team queue will plug in here to mark the conversation for a person; for now it is logged.
+ * The case then goes to the team queue (convex/triagem.ts).
  */
 async function encaminharParaEquipe(ctx: MutationCtx, telefone: string) {
   const { cartilhaUrl, cartilhaNome } = configuracao();
@@ -388,6 +396,8 @@ async function encaminharParaEquipe(ctx: MutationCtx, telefone: string) {
     }
   }
   await agendarEmSequenciaDoRobo(ctx, telefone, mensagens);
+  // The case goes to the team queue with the alert "o robô não entendeu".
+  await registrarQueRoboNaoEntendeu(ctx, telefone);
   logarSimulado('[canal] conversa precisa da equipe', { telefone });
 }
 
@@ -451,8 +461,8 @@ async function repetirPergunta(ctx: MutationCtx, telefone: string, pergunta: Per
 
 /**
  * Turns what the patient typed into an option ID of the open question.
- * Accepts the option number ("2", "2.", "opção 2") or the exact option name, ignoring accents,
- * case and punctuation ("insonia" = "Insônia"). With `tolerarErroDeDigitacao` it also accepts a
+ * Accepts the option number ("2", "2.", "opção 2"), the number in words ("dois", "segunda") or
+ * the exact option name, ignoring accents, case and punctuation ("INSONIA" = "Insônia"). With `tolerarErroDeDigitacao` it also accepts a
  * small typo ("ansieade") when only one option is that close — off unless the team approves it.
  */
 export function resolverOpcaoDigitada(
@@ -462,7 +472,9 @@ export function resolverOpcaoDigitada(
 ): string | null {
   if (!menu || menu.length === 0) return null;
 
-  const numero = /^\s*(?:op[cç][aã]o\s*)?(\d{1,2})\s*[.):-]?\s*$/i.exec(texto);
+  const numero = /^\s*(?:(?:op[cç][aã]o|n[uú]mero|resposta)\s*)?(\d{1,2})\s*[.):ºª°-]?\s*$/i.exec(
+    texto
+  );
   if (numero) {
     const indice = Number(numero[1]) - 1;
     return menu[indice]?.id ?? null;
@@ -473,7 +485,22 @@ export function resolverOpcaoDigitada(
 
   const exatas = menu.filter((opcao) => normalizarTexto(opcao.titulo) === digitado);
   if (exatas.length === 1) return exatas[0].id;
-  if (exatas.length > 1 || !tolerarErroDeDigitacao) return null;
+  if (exatas.length > 1) return null;
+
+  // Number written in words: "dois" = "2", "segunda" = "2", "opção três" = "3".
+  const porExtenso = numeroPorExtenso(digitado);
+  if (porExtenso !== null) {
+    const escolhida = menu[porExtenso - 1];
+    if (!escolhida) return null;
+    // "uma" could also be the start of the option "Uma vez": ambiguous, ask again.
+    const palavra = digitado.split(' ').at(-1) ?? '';
+    const ambigua = menu.some(
+      (opcao) =>
+        opcao.id !== escolhida.id && normalizarTexto(opcao.titulo).split(' ')[0] === palavra
+    );
+    return ambigua ? null : escolhida.id;
+  }
+  if (!tolerarErroDeDigitacao) return null;
 
   const tolerancia = digitado.length >= 8 ? 2 : digitado.length >= 4 ? 1 : 0;
   if (tolerancia === 0) return null;
@@ -484,6 +511,49 @@ export function resolverOpcaoDigitada(
   const melhor = Math.min(...distancias.map((d) => d.distancia));
   const empatadas = distancias.filter((d) => d.distancia === melhor);
   return melhor <= tolerancia && empatadas.length === 1 ? empatadas[0].id : null;
+}
+
+const NUMEROS_POR_EXTENSO: Record<string, number> = {
+  um: 1,
+  uma: 1,
+  primeiro: 1,
+  primeira: 1,
+  dois: 2,
+  duas: 2,
+  segundo: 2,
+  segunda: 2,
+  tres: 3,
+  terceiro: 3,
+  terceira: 3,
+  quatro: 4,
+  quarto: 4,
+  quarta: 4,
+  cinco: 5,
+  quinto: 5,
+  quinta: 5,
+  seis: 6,
+  sexto: 6,
+  sexta: 6,
+  sete: 7,
+  setimo: 7,
+  setima: 7,
+  oito: 8,
+  oitavo: 8,
+  oitava: 8,
+  nove: 9,
+  nono: 9,
+  nona: 9,
+  dez: 10,
+  decimo: 10,
+  decima: 10,
+};
+
+/** "dois", "opcao dois", "a segunda", "numero 3" (already normalized) → the number, or `null`. */
+function numeroPorExtenso(normalizado: string): number | null {
+  const correspondencia =
+    /^(?:(?:a|o|opcao|numero|resposta)\s+)*(?:(?:a|o)\s+)?([a-z]+)(?:\s+opcao)?$/.exec(normalizado);
+  if (!correspondencia) return null;
+  return NUMEROS_POR_EXTENSO[correspondencia[1]] ?? null;
 }
 
 /** Levenshtein distance between two short strings. */
@@ -610,6 +680,8 @@ async function enviarOuGuardar(
     .first();
   await ctx.db.insert('canalMensagensPendentes', { telefone, mensagem, criadaEm: agora });
   if (!jaAvisada) {
+    // Kept in the history too, so the team sees that she was notified.
+    await registrarMensagemEnviada(ctx, telefone, TEXTO_MODELO_AVISO, { tipo: 'robo' });
     await ctx.scheduler.runAfter(0, internal.canal.entregarAviso, { telefone });
   }
   return { situacao: 'aguardando_paciente' };
@@ -673,11 +745,12 @@ function textoParaHistorico(mensagem: MensagemSaida): string {
     case 'texto':
       return mensagem.texto;
     case 'botoes':
-    case 'lista':
-      return [
-        mensagem.texto,
-        ...mensagem.opcoes.map((opcao, indice) => `${indice + 1}. ${opcao.titulo}`),
-      ].join('\n');
+    case 'lista': {
+      const numeradas = mensagem.opcoes.map((opcao, indice) => `${indice + 1}. ${opcao.titulo}`);
+      // The check-in questions already list the numbered options in the text.
+      const jaListadas = mensagem.texto.endsWith(numeradas.join('\n'));
+      return jaListadas ? mensagem.texto : [mensagem.texto, ...numeradas].join('\n');
+    }
     case 'midia': {
       const rotulo = mensagem.midia === 'documento' ? 'Documento' : 'Vídeo';
       const detalhe = mensagem.legenda ?? mensagem.nomeArquivo ?? mensagem.url;

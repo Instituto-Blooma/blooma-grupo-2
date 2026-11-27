@@ -12,14 +12,20 @@ import type * as auth from "../auth.js";
 import type * as authz from "../authz.js";
 import type * as canal from "../canal.js";
 import type * as collab from "../collab.js";
+import type * as crons from "../crons.js";
+import type * as demonstracao from "../demonstracao.js";
 import type * as devForm from "../devForm.js";
 import type * as devFormSchemas from "../devFormSchemas.js";
 import type * as emails from "../emails.js";
+import type * as equipe from "../equipe.js";
 import type * as files from "../files.js";
 import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_codigoPorEmail from "../lib/codigoPorEmail.js";
 import type * as lib_collabAccess from "../lib/collabAccess.js";
 import type * as lib_collabIds from "../lib/collabIds.js";
+import type * as lib_emailMarca from "../lib/emailMarca.js";
+import type * as lib_escala from "../lib/escala.js";
 import type * as lib_forms from "../lib/forms.js";
 import type * as lib_googleProvider from "../lib/googleProvider.js";
 import type * as lib_guestQuery from "../lib/guestQuery.js";
@@ -37,6 +43,7 @@ import type * as platform from "../platform.js";
 import type * as tenants from "../tenants.js";
 import type * as testing_e2e from "../testing/e2e.js";
 import type * as todos from "../todos.js";
+import type * as triagem from "../triagem.js";
 import type * as users from "../users.js";
 
 import type {
@@ -50,14 +57,20 @@ declare const fullApi: ApiFromModules<{
   authz: typeof authz;
   canal: typeof canal;
   collab: typeof collab;
+  crons: typeof crons;
+  demonstracao: typeof demonstracao;
   devForm: typeof devForm;
   devFormSchemas: typeof devFormSchemas;
   emails: typeof emails;
+  equipe: typeof equipe;
   files: typeof files;
   http: typeof http;
   "lib/auth": typeof lib_auth;
+  "lib/codigoPorEmail": typeof lib_codigoPorEmail;
   "lib/collabAccess": typeof lib_collabAccess;
   "lib/collabIds": typeof lib_collabIds;
+  "lib/emailMarca": typeof lib_emailMarca;
+  "lib/escala": typeof lib_escala;
   "lib/forms": typeof lib_forms;
   "lib/googleProvider": typeof lib_googleProvider;
   "lib/guestQuery": typeof lib_guestQuery;
@@ -75,6 +88,7 @@ declare const fullApi: ApiFromModules<{
   tenants: typeof tenants;
   "testing/e2e": typeof testing_e2e;
   todos: typeof todos;
+  triagem: typeof triagem;
   users: typeof users;
 }>;
 

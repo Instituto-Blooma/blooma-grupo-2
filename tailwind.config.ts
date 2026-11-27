@@ -82,6 +82,30 @@ export default {
           foreground: 'hsl(var(--sidebar-accent-foreground) / <alpha-value>)',
           border: 'var(--sidebar-accent-border)',
         },
+        // Olhar Humano palette (client/src/index.css). Use these names, never loose hex colors.
+        azul: {
+          DEFAULT: 'hsl(var(--azul) / <alpha-value>)',
+          clarinho: 'hsl(var(--azul-clarinho) / <alpha-value>)',
+          medio: 'hsl(var(--azul-medio) / <alpha-value>)',
+          profundo: 'hsl(var(--azul-profundo) / <alpha-value>)',
+        },
+        lavanda: {
+          DEFAULT: 'hsl(var(--lavanda) / <alpha-value>)',
+          clara: 'hsl(var(--lavanda-clara) / <alpha-value>)',
+        },
+        roxo: {
+          DEFAULT: 'hsl(var(--roxo) / <alpha-value>)',
+          escuro: 'hsl(var(--roxo-escuro) / <alpha-value>)',
+        },
+        laranja: {
+          DEFAULT: 'hsl(var(--laranja) / <alpha-value>)',
+          claro: 'hsl(var(--laranja-claro) / <alpha-value>)',
+          escuro: 'hsl(var(--laranja-escuro) / <alpha-value>)',
+        },
+        pessego: 'hsl(var(--pessego) / <alpha-value>)',
+        titulo: 'hsl(var(--titulo) / <alpha-value>)',
+        subtitulo: 'hsl(var(--subtitulo) / <alpha-value>)',
+        link: 'hsl(var(--link) / <alpha-value>)',
         status: {
           online: 'rgb(34 197 94)',
           away: 'rgb(245 158 11)',
@@ -92,6 +116,7 @@ export default {
       fontFamily: {
         sans: ['var(--font-sans)'],
         serif: ['var(--font-serif)'],
+        subtitulo: ['var(--font-subtitulo)'],
         mono: ['var(--font-mono)'],
       },
       keyframes: {

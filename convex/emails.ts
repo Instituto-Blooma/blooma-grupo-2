@@ -2,6 +2,11 @@
 
 import { v } from 'convex/values';
 import { internalAction } from './_generated/server';
+import { cabecalhoDoEmail } from './lib/emailMarca';
+
+function escaparHtml(texto: string) {
+  return texto.replace(/[&<>"']/g, (letra) => `&#${letra.charCodeAt(0)};`);
+}
 
 async function sendEmail(args: { email: string; organizationName: string; acceptUrl: string }) {
   const apiKey = process.env.RESEND_API_KEY ?? 're_emulate_test_key';
@@ -16,8 +21,8 @@ async function sendEmail(args: { email: string; organizationName: string; accept
     body: JSON.stringify({
       from,
       to: [args.email],
-      subject: `Join ${args.organizationName}`,
-      html: `<p>You have been invited to join <strong>${args.organizationName}</strong>.</p><p><a href="${args.acceptUrl}">Sign in to activate your account</a></p>`,
+      subject: `Convite para a equipe do ${args.organizationName} no Olhar Humano`,
+      html: `${cabecalhoDoEmail()}<p>Você foi convidada para a equipe de psicologia do <strong>${escaparHtml(args.organizationName)}</strong> no Olhar Humano.</p><p><a href="${args.acceptUrl}">Aceitar o convite</a></p><p>No primeiro acesso, use este e-mail e crie uma senha.</p>`,
     }),
   });
   if (!response.ok) {

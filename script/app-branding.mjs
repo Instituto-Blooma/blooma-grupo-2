@@ -77,9 +77,9 @@ export function resolvePrNumberSync(env = process.env) {
  * @param {'production' | 'staging' | 'development'} appEnv
  */
 export function getBaseTitlePrefix(appEnv) {
-  if (appEnv === 'staging') return 'Staging';
-  if (appEnv === 'development') return 'Dev';
-  return 'Instituto Blooma';
+  if (appEnv === 'staging') return 'Teste · Olhar Humano';
+  if (appEnv === 'development') return 'Dev · Olhar Humano';
+  return 'Olhar Humano';
 }
 
 /**

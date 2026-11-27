@@ -25,9 +25,35 @@ Regras em [`convex/pacientes.ts`](../../convex/pacientes.ts), nesta ordem para c
 
 1. **Palavras de risco** (lista editável, tabela `palavrasDeRisco`): se a mensagem tiver uma delas, o robô manda a mensagem fixa com o CVV (188) e o SAMU (192), e o hospital recebe um alerta só com telefone e horário. O texto não é guardado antes do aceite. Se ela ainda não escolheu o hospital, o alerta aparece para o hospital que ela escolher.
 2. **"apagar meus dados"**: o robô confirma o recebimento e o pedido aparece para a equipe do hospital dela (`listarPedidosDeExclusao`), que confirma no site (`apagarDadosDaPaciente`). Isso apaga o cadastro, as mensagens, os alertas e os registros do canal; fica só um registro mínimo (`exclusoesRealizadas`: hospital, quem apagou e quando).
-3. **Hospital**: se a mensagem tiver o código de um hospital ("Oi ACC"), ela fica ligada a ele. Sem código: com um hospital só cadastrado, ela é ligada a ele; com mais de um, o robô pergunta "Em qual hospital você faz tratamento?".
+3. **Hospital**: se a mensagem tiver o código de um hospital como palavra separada ("Oi, sou uma paciente do ACC"), ela fica ligada a ele. Sem código: com um hospital só cadastrado, ela é ligada a ele; com mais de um, o robô pergunta "Em qual hospital você faz tratamento?".
 4. **Termo**: antes do aceite, nenhum texto é guardado. O robô manda o termo com "Aceito" e "Não aceito". Sem termo publicado, nada é guardado. Se o termo mudar de versão, o robô pede o aceite de novo.
 5. **Histórico**: depois do aceite, toda mensagem que entra e sai vai para `mensagensConversa` (paciente, robô ou profissional).
+
+## Triagem: cadastro, check-in e prioridade
+
+Regras em [`convex/triagem.ts`](../../convex/triagem.ts) e [`convex/lib/escala.ts`](../../convex/lib/escala.ts):
+
+1. **Cadastro** (logo depois do aceite): o robô pergunta o nome completo, depois como ela gosta de ser chamada e depois o número do prontuário ("NÃO SEI" vale). A equipe pode corrigir no site.
+2. **Check-in**: uma pergunta por vez, com botões (até 3 opções) ou lista (de 4 a 10), e as opções numeradas no texto. Cada resposta vale pontos. Ela pode tocar no botão ou digitar: o número ("2", "opção 2"), o número por extenso ("dois", "segunda") ou o nome da opção, com maiúsculas ou minúsculas e com ou sem acento. Se o que ela digitar servir para duas opções (por exemplo "um" quando existe a opção "Um pouco"), o robô pergunta de novo.
+3. **Regra fixa de prioridade**: qualquer resposta de risco → **urgente**. Sem risco, a soma decide: a partir de `altaAPartirDe` → **alta**; a partir de `moderadaAPartirDe` → **moderada**; abaixo → **baixa**. Nenhuma IA decide nada.
+4. **Resposta de risco**: o caso fica urgente na fila na hora. A paciente termina o check-in e, na mensagem final, recebe o CVV (188) e o SAMU (192).
+5. **Palavra de risco escrita**: o robô manda o CVV e o SAMU na hora (como antes), o check-in em andamento para e o caso fica urgente.
+6. **Robô não entendeu** (3 respostas erradas seguidas): o check-in para e o caso vai para a fila com o alerta cinza "Robô não entendeu", separado do alerta vermelho "Sinal de risco" (resposta de risco ou palavra de risco). A fila tem um filtro para cada tipo.
+7. **Toda semana**: segunda-feira às 9h (Brasília), toda paciente com cadastro completo recebe um check-in novo ([`convex/crons.ts`](../../convex/crons.ts)). Um check-in da semana anterior sem resposta fica como "interrompido".
+
+Check-in com prioridade urgente, alta ou moderada abre um caso na fila (ou atualiza o caso aberto). Check-in com prioridade **baixa** não abre caso: a equipe recebe um aviso ("Fulana concluiu o check-in às 14:32 do dia 25/11/2026. A classificação da prioridade é baixa.") e as respostas ficam na ficha. Se a equipe quiser, pode assumir o caso pela ficha. Num caso aberto, a prioridade só sobe: quem fecha o caso é a equipe.
+
+### A escala é dado (EXEMPLO por enquanto)
+
+A escala fica na tabela `escalasTriagem`; a mais recente vale para os próximos check-ins. Enquanto nenhuma for publicada, o sistema usa a **escala de EXEMPLO** de `convex/lib/escala.ts` (6 perguntas, pontos de corte de exemplo). Ela **não é validada** e aparece marcada como exemplo no site. Para trocar pela escala escolhida pelas psicólogas:
+
+```bash
+npx convex run triagem:publicarEscala '{"escala":{"versao":"1","nome":"Nome da escala","exemplo":false,"perguntas":[{"id":"tristeza","texto":"...","opcoes":[{"id":"nada","titulo":"Nada","pontos":0,"risco":false}]}],"faixas":{"altaAPartirDe":7,"moderadaAPartirDe":4}}}'
+```
+
+Os check-ins antigos guardam o texto das perguntas e respostas como foram mostrados, então continuam legíveis depois da troca.
+
+Para mandar um check-in na hora (teste): `npx convex run triagem:enviarCheckinAgora '{"telefone":"5511999998888"}'`.
 
 **Quem vê o quê:** cada hospital (organização) vê só as próprias pacientes, conversas, alertas e pedidos (`listarPacientes`, `listarMensagens`, `listarAlertasDeCrise`, `listarPedidosDeExclusao`). Uma paciente ainda sem hospital não aparece para ninguém.
 
@@ -55,10 +81,35 @@ Esses comandos usam aspas simples, que funcionam no Git Bash, no macOS e no Linu
 O link abre o WhatsApp com a mensagem já escrita. Formato:
 
 ```
-https://wa.me/<número do robô só com dígitos>?text=Oi%20<CÓDIGO>
+https://wa.me/<número do robô só com dígitos>?text=Oi%2C%20sou%20uma%20paciente%20do%20<CÓDIGO>
 ```
 
-Exemplo, se o número do robô fosse +55 11 99999-0000 e o código ACC: `https://wa.me/5511999990000?text=Oi%20ACC`. O `%20` é o espaço. Esse link pode virar QR code em qualquer gerador de QR. O número é o que a Meta der para a conta do WhatsApp Business.
+Exemplo, se o número do robô fosse +55 11 99999-0000 e o código ACC: `https://wa.me/5511999990000?text=Oi%2C%20sou%20uma%20paciente%20do%20ACC`. O `%2C` é a vírgula e o `%20` é o espaço. A mensagem vem de `mensagemDoLink` em `convex/pacientes.ts`. Um código não pode ser uma palavra da própria mensagem (por exemplo "DO" ou "OI"). Esse link pode virar QR code em qualquer gerador de QR. O número é o que a Meta der para a conta do WhatsApp Business.
+
+### Pacientes fictícias para ver o site
+
+Para ver a Fila, as fichas, os alertas e os avisos com dados (por exemplo na versão de teste do Railway), com o WhatsApp **simulado**:
+
+```bash
+pnpm run demo:pacientes                       # hospital A.C. Camargo ("ac-camargo") ou o único cadastrado
+pnpm run demo:pacientes -- --hospital <slug>  # outro hospital (o endereço curto dele)
+```
+
+Cria 9 pacientes fictícias, com telefones `+55 00 90000-0001` a `-0009` (o DDD 00 não existe):
+
+| Paciente          | O que mostra                                                                         |
+| ----------------- | ------------------------------------------------------------------------------------ |
+| Joana Pereira     | Resposta de risco no check-in (respondeu digitando "dois") → urgente, sinal de risco |
+| Luíza Costa       | Escreveu uma palavra de risco → urgente, sinal de risco                              |
+| Teresa Alves      | Prioridade alta                                                                      |
+| Cláudia Moura     | Prioridade moderada                                                                  |
+| Rita Gomes        | O robô não entendeu as respostas                                                     |
+| Maria Silva       | Prioridade baixa: só aviso; três check-ins no histórico                              |
+| Helena Rocha      | Prioridade baixa: só aviso (1 ponto)                                                 |
+| Beatriz Nunes     | Cadastro incompleto                                                                  |
+| +55 00 90000-0009 | Ainda não aceitou o termo                                                            |
+
+Se faltar código do hospital, termo, palavras de risco ou escala, o comando cria versões de teste. Rodar de novo recria as mesmas pacientes. Para apagar tudo, use o comando abaixo.
 
 ### Apagar os dados de teste
 
@@ -122,4 +173,8 @@ Defina no Convex (`npx convex env set NOME valor`):
 | `CANAL_CARTILHA_NOME`          | Opcional. Nome do arquivo da cartilha (padrão `cartilha.pdf`).                  |
 | `CANAL_TOLERAR_ERRO_DIGITACAO` | Opcional. `true` aceita um erro pequeno de digitação no nome da opção.          |
 
-No painel da Meta, a URL do webhook é `<CONVEX_SITE_URL>/whatsapp/webhook`, com assinatura do campo `messages`. Também é preciso pedir a aprovação do modelo de aviso (por exemplo: "Você tem uma nova mensagem da equipe. Responda aqui para ver.").
+No painel da Meta, a URL do webhook é `<CONVEX_SITE_URL>/whatsapp/webhook`, com assinatura do campo `messages`. Também é preciso pedir a aprovação do modelo de aviso `nova_mensagem_equipe` (categoria "Utilidade", idioma português do Brasil) com **exatamente** este texto, que é o mesmo de `TEXTO_MODELO_AVISO` em `convex/canal.ts`:
+
+> Oi, tudo bem? Você tem uma nova mensagem da equipe! Por favor, escreva uma mensagem para te enviarmos a resposta da equipe.
+
+O WhatsApp envia o texto cadastrado na Meta; o do código só aparece no histórico da conversa no site. Se mudar um, mude o outro.

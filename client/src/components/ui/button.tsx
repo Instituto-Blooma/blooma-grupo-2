@@ -10,12 +10,16 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default: 'bg-primary text-primary-foreground shadow hover:bg-primary/90',
+        // Main action of the screen (at most one per screen): orange, darker orange on hover.
+        // On the dark theme the page is blue, so it uses laranja-claro (orange never on blue).
+        principal:
+          'bg-laranja text-white shadow hover:bg-laranja-escuro dark:bg-laranja-claro dark:text-azul-profundo dark:hover:bg-pessego',
         destructive: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
         outline:
           'border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground',
         secondary: 'bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80',
         ghost: 'hover:bg-accent hover:text-accent-foreground',
-        link: 'text-primary underline-offset-4 hover:underline',
+        link: 'text-link underline-offset-4 hover:underline',
       },
       size: {
         default: 'h-9 px-4 py-2',
