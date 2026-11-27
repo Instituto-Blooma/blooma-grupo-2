@@ -136,6 +136,17 @@ export function data(momento: number) {
   return formatoData.format(new Date(momento));
 }
 
+/** "DT 7 · GAD-7 12 · PHQ-9 15" (only the scales she answered). */
+export function resumoDasNotas(notas: { dt?: number; gad7?: number; phq9?: number }) {
+  return [
+    notas.dt !== undefined ? `DT ${notas.dt}` : null,
+    notas.gad7 !== undefined ? `GAD-7 ${notas.gad7}` : null,
+    notas.phq9 !== undefined ? `PHQ-9 ${notas.phq9}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
 /** "1 ponto", "0 pontos", "9 pontos". */
 export function pontos(quantidade: number) {
   return `${quantidade} ${quantidade === 1 ? 'ponto' : 'pontos'}`;

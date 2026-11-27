@@ -10,6 +10,7 @@ import {
   mensagemDeErro,
   nomeDaPaciente,
   pontos,
+  resumoDasNotas,
   SeloPrioridade,
 } from '@/components/equipe/formato';
 import { Button } from '@/components/ui/button';
@@ -96,9 +97,11 @@ function Avisos({ hospital }: { hospital: Hospital }) {
                 às {formatoHora.format(new Date(aviso.concluidoEm))} do dia{' '}
                 {data(aviso.concluidoEm)}. A classificação da prioridade é{' '}
                 <SeloPrioridade prioridade="baixa" />
-                {aviso.pontuacao !== null && aviso.pontuacaoMaxima !== null
-                  ? ` (${aviso.pontuacao} de ${pontos(aviso.pontuacaoMaxima)}).`
-                  : '.'}
+                {aviso.notas
+                  ? ` (${resumoDasNotas(aviso.notas)}${aviso.notas.gadPhqNaoAplicados ? '; GAD-7 e PHQ-9 não aplicados' : ''}).`
+                  : aviso.pontuacao !== null && aviso.pontuacaoMaxima !== null
+                    ? ` (${aviso.pontuacao} de ${pontos(aviso.pontuacaoMaxima)}).`
+                    : '.'}
               </p>
               {aviso.vistoPor && aviso.vistoEm ? (
                 <p className="text-xs text-muted-foreground">

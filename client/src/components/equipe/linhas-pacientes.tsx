@@ -8,6 +8,7 @@ import {
   formatarTelefone,
   nomeDaPaciente,
   pontos,
+  resumoDasNotas,
   ROTULO_PRIORIDADE,
   ROTULO_SITUACAO,
   SeloAlerta,
@@ -70,10 +71,13 @@ export function LinhasPacientes({
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                   <span>{formatarTelefone(linha.telefone)}</span>
-                  {linha.ultimaPontuacao !== null && linha.ultimoCheckinEm !== null ? (
+                  {linha.ultimoCheckinEm !== null &&
+                  (linha.ultimasNotas !== null || linha.ultimaPontuacao !== null) ? (
                     <span>
                       Último check-in: {data(linha.ultimoCheckinEm)} ·{' '}
-                      {pontos(linha.ultimaPontuacao)}
+                      {linha.ultimasNotas
+                        ? resumoDasNotas(linha.ultimasNotas)
+                        : pontos(linha.ultimaPontuacao ?? 0)}
                       {linha.ultimaPrioridade
                         ? ` · prioridade ${ROTULO_PRIORIDADE[linha.ultimaPrioridade].toLowerCase()}`
                         : ''}

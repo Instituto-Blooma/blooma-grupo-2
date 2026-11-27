@@ -12,6 +12,7 @@ import {
   mensagemDeErro,
   nomeDaPaciente,
   pontos,
+  resumoDasNotas,
   ROTULO_SITUACAO,
   categoriaDoAlerta,
   SeloAlerta,
@@ -330,10 +331,10 @@ function CheckinItem({ checkin }: { checkin: Checkin }) {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold tabular-nums">
-            {checkin.pontuacaoMaxima !== null
-              ? `${checkin.pontuacao} de ${pontos(checkin.pontuacaoMaxima)}`
-              : checkin.resultados?.dt !== undefined
-                ? `DT ${checkin.resultados.dt}`
+            {checkin.resultados
+              ? resumoDasNotas(checkin.resultados)
+              : checkin.pontuacaoMaxima !== null
+                ? `${checkin.pontuacao} de ${pontos(checkin.pontuacaoMaxima)}`
                 : ''}
           </span>
           {checkin.prioridade ? <SeloPrioridade prioridade={checkin.prioridade} /> : null}
@@ -345,8 +346,15 @@ function CheckinItem({ checkin }: { checkin: Checkin }) {
           teste.
         </p>
       ) : null}
+      {checkin.textoOficialPendente ? (
+        <p className="rounded-md bg-lavanda-clara px-3 py-2 text-xs text-roxo-escuro">
+          Feito com o texto provisório das escalas (o texto oficial ainda não foi colado).
+        </p>
+      ) : null}
       {checkin.respostas.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nenhuma resposta.</p>
+      ) : checkin.respostas.some((resposta) => resposta.tipo !== undefined) ? (
+        <ResultadoDaTriagem checkin={checkin} />
       ) : (
         <ol className="space-y-2 text-sm">
           {checkin.respostas.map((resposta, indice) => (
@@ -383,6 +391,166 @@ function CheckinItem({ checkin }: { checkin: Checkin }) {
         </ol>
       )}
     </div>
+  );
+}
+
+type Resposta = Checkin['respostas'][number];
+
+/** Entry triage on the record: DT, problem list, other problems, GAD-7, PHQ-9 and the q9 alert. */
+function ResultadoDaTriagem({ checkin }: { checkin: Checkin }) {
+  const { resultados, acimaDoCorte, faixas } = checkin;
+  const daEscala = (escala: Resposta['escala']) =>
+    checkin.respostas.filter((resposta) => resposta.escala === escala);
+  const problemas = checkin.respostas.filter((resposta) => resposta.tipo === 'problemas');
+  const outros = checkin.respostas.find((resposta) => resposta.tipo === 'aberta');
+  const gad7 = daEscala('gad7');
+  const phq9 = daEscala('phq9');
+
+  return (
+    <div className="space-y-4 text-sm">
+      {resultados?.riscoPhq9 ? (
+        <p className="flex items-start gap-2 rounded-md bg-pessego px-3 py-2 font-medium text-laranja-escuro">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          Pergunta 9 do PHQ-9 respondida acima de &quot;Nenhuma vez&quot;. A equipe foi avisada e
+          ela recebeu os contatos do CVV (188) e do SAMU (192).
+        </p>
+      ) : null}
+
+      <section className="space-y-2">
+        <h4 className="font-semibold">Termômetro de Distresse (DT)</h4>
+        <p>
+          {resultados?.dt !== undefined ? (
+            <>
+              <span className="font-semibold tabular-nums">{resultados.dt} de 10</span>
+              {acimaDoCorte ? (
+                <span className="text-muted-foreground">
+                  {acimaDoCorte.dt ? ' · acima do corte' : ' · abaixo do corte'}
+                </span>
+              ) : null}
+            </>
+          ) : (
+            <span className="text-muted-foreground">Não respondeu o termômetro.</span>
+          )}
+        </p>
+        {problemas.length > 0 ? (
+          <dl className="space-y-1.5">
+            {problemas.map((categoria) => {
+              const marcados = (categoria.itens ?? []).filter((item) => item.sim);
+              return (
+                <div key={categoria.perguntaId}>
+                  <dt className="text-muted-foreground">{categoria.perguntaTexto}</dt>
+                  <dd>
+                    {marcados.length > 0
+                      ? marcados.map((item) => item.texto).join(', ')
+                      : 'Nenhum problema marcado'}
+                  </dd>
+                </div>
+              );
+            })}
+          </dl>
+        ) : null}
+        {outros ? (
+          <div>
+            <p className="text-muted-foreground">Outros problemas</p>
+            <p className="whitespace-pre-wrap">{outros.texto ?? 'Nenhum'}</p>
+          </div>
+        ) : null}
+      </section>
+
+      {resultados?.gadPhqNaoAplicados ? (
+        <p className="rounded-md bg-azul-clarinho px-3 py-2 text-azul-profundo">
+          GAD-7 e PHQ-9 não aplicados: o termômetro ficou abaixo do corte.
+        </p>
+      ) : (
+        <>
+          <EscalaDePontos
+            nome="GAD-7 (ansiedade)"
+            nota={resultados?.gad7}
+            maximo={21}
+            faixa={faixas.gad7}
+            acima={acimaDoCorte?.gad7}
+            respostas={gad7}
+          />
+          <EscalaDePontos
+            nome="PHQ-9 (depressão)"
+            nota={resultados?.phq9}
+            maximo={27}
+            faixa={faixas.phq9}
+            acima={acimaDoCorte?.phq9}
+            respostas={phq9}
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+function EscalaDePontos({
+  nome,
+  nota,
+  maximo,
+  faixa,
+  acima,
+  respostas,
+}: {
+  nome: string;
+  nota: number | undefined;
+  maximo: number;
+  faixa: string | null;
+  acima: boolean | undefined;
+  respostas: Resposta[];
+}) {
+  if (nota === undefined && respostas.length === 0) return null;
+  return (
+    <section className="space-y-2">
+      <h4 className="font-semibold">{nome}</h4>
+      <p>
+        {nota !== undefined ? (
+          <>
+            <span className="font-semibold tabular-nums">
+              {nota} de {maximo}
+            </span>
+            {faixa ? <span> · faixa {faixa}</span> : null}
+            {acima !== undefined ? (
+              <span className="text-muted-foreground">
+                {acima ? ' · acima do corte' : ' · abaixo do corte'}
+              </span>
+            ) : null}
+          </>
+        ) : (
+          <span className="text-muted-foreground">Não terminou esta escala.</span>
+        )}
+      </p>
+      {respostas.length > 0 ? (
+        <details>
+          <summary className="cursor-pointer text-muted-foreground">Ver respostas</summary>
+          <ol className="mt-2 space-y-1.5">
+            {respostas.map((resposta, indice) => (
+              <li
+                key={resposta.perguntaId}
+                className={cn(
+                  'flex items-start justify-between gap-3 rounded-md px-2 py-1',
+                  resposta.risco && 'bg-pessego text-laranja-escuro'
+                )}
+              >
+                <span>
+                  <span className={resposta.risco ? 'opacity-80' : 'text-muted-foreground'}>
+                    {indice + 1}.{' '}
+                  </span>
+                  {resposta.perguntaTexto}
+                  <br />
+                  <span className="font-medium">{resposta.opcaoTitulo}</span>
+                  {resposta.risco ? (
+                    <span className="ml-2 text-xs font-semibold">resposta de risco</span>
+                  ) : null}
+                </span>
+                <span className="shrink-0 tabular-nums opacity-80">{resposta.pontos} pt</span>
+              </li>
+            ))}
+          </ol>
+        </details>
+      ) : null}
+    </section>
   );
 }
 

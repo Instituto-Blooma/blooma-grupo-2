@@ -31,6 +31,7 @@ import {
   temConsentimentoAtual,
 } from './pacientes';
 import { ultimoProtocolo } from './triagem';
+import { acimaDoCorte, faixaDaNota } from './lib/protocolo';
 
 const MAX_TEXTO_MENSAGEM = 3000;
 const MAX_ALERTAS_NA_FICHA = 50;
@@ -225,6 +226,7 @@ export const avisos = query({
             concluidoEm: checkin?.concluidoEm ?? aviso.criadoEm,
             pontuacao: checkin?.pontuacao ?? null,
             pontuacaoMaxima: checkin?.pontuacaoMaxima ?? null,
+            notas: checkin?.resultados ?? null,
             vistoPor: aviso.vistoPor ? await nomeDoProfissional(ctx, aviso.vistoPor) : null,
             vistoEm: aviso.vistoEm ?? null,
           };
@@ -328,6 +330,7 @@ async function linhaDaPaciente(ctx: QueryCtx, paciente: Doc<'pacientes'>) {
     alertaRisco: paciente.naFila === true && paciente.alertaRisco === true,
     alertaRobo: paciente.naFila === true && paciente.alertaRobo === true,
     ultimaPontuacao: paciente.ultimaPontuacao ?? null,
+    ultimasNotas: paciente.ultimasNotas ?? null,
     ultimoCheckinEm: paciente.ultimoCheckinEm ?? null,
     checkinEmAndamento: paciente.checkinAtualId !== undefined,
     naFila: paciente.naFila === true,
@@ -400,12 +403,16 @@ export const ficha = query({
 export const listarCheckins = query({
   args: { pacienteId: v.id('pacientes'), paginationOpts: paginationOptsValidator },
   handler: async (ctx, args) => {
-    await requireAcessoAPaciente(ctx, args.pacienteId);
+    const { paciente } = await requireAcessoAPaciente(ctx, args.pacienteId);
     const pagina = await ctx.db
       .query('checkins')
       .withIndex('by_pacienteId_and_iniciadoEm', (q) => q.eq('pacienteId', args.pacienteId))
       .order('desc')
       .paginate(args.paginationOpts);
+    // Cut-offs of today (the record says "acima do corte" with the current settings).
+    const cortes = paciente.organizationId
+      ? (await configuracaoDoHospital(ctx, paciente.organizationId)).cortes
+      : null;
     return {
       ...pagina,
       page: pagina.page.map((checkin) => ({
@@ -415,6 +422,18 @@ export const listarCheckins = query({
         escalaExemplo: checkin.escalaExemplo ?? false,
         textoOficialPendente: checkin.textoOficialPendente ?? false,
         resultados: checkin.resultados ?? null,
+        acimaDoCorte:
+          checkin.resultados && cortes ? acimaDoCorte(checkin.resultados, cortes) : null,
+        faixas: {
+          gad7:
+            checkin.resultados?.gad7 !== undefined
+              ? faixaDaNota('gad7', checkin.resultados.gad7)
+              : null,
+          phq9:
+            checkin.resultados?.phq9 !== undefined
+              ? faixaDaNota('phq9', checkin.resultados.phq9)
+              : null,
+        },
         motivo: checkin.motivo,
         situacao: checkin.situacao,
         motivoInterrupcao: checkin.motivoInterrupcao ?? null,
